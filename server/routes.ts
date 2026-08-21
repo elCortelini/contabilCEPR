@@ -14,6 +14,176 @@ router.post('/importar', (req, res) => {
   }
 });
 
+// Backup Export Endpoint
+router.get('/backup/export', (req, res) => {
+  try {
+    const users = db.prepare('SELECT * FROM users').all();
+    const carteiras = db.prepare('SELECT * FROM carteiras').all();
+    const entradas = db.prepare('SELECT * FROM entradas').all();
+    const saidas = db.prepare('SELECT * FROM saidas').all();
+    const fornecedores = db.prepare('SELECT * FROM fornecedores').all();
+    const produtos = db.prepare('SELECT * FROM produtos').all();
+    const categorias = db.prepare('SELECT * FROM categorias').all();
+    const turmas = db.prepare('SELECT * FROM turmas').all();
+    const alunos = db.prepare('SELECT * FROM alunos').all();
+    const mensalidades = db.prepare('SELECT * FROM mensalidades').all();
+
+    const backupData = {
+      formato: 'sistema-financeiro-escolar-export-v2',
+      exportadoEm: new Date().toISOString(),
+      tabelas: {
+        users,
+        carteiras,
+        entradas,
+        saidas,
+        fornecedores,
+        produtos,
+        categorias,
+        turmas,
+        alunos,
+        mensalidades
+      }
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename=backup_financeiro_cepr.json');
+    res.send(JSON.stringify(backupData, null, 2));
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Categorias
+router.get('/categorias', (req, res) => {
+  try {
+    const categorias = db.prepare('SELECT * FROM categorias ORDER BY nome ASC').all();
+    res.json(categorias);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/categorias', (req, res) => {
+  try {
+    const { nome, tipo, cor } = req.body;
+    const result = db.prepare('INSERT INTO categorias (nome, tipo, cor) VALUES (?, ?, ?)').run(nome, tipo || 'entrada', cor || '#6366f1');
+    res.json({ id: result.lastInsertRowid, message: 'Categoria criada com sucesso!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/categorias/:id', (req, res) => {
+  try {
+    db.prepare('DELETE FROM categorias WHERE id = ?').run(req.params.id);
+    res.json({ message: 'Categoria excluída com sucesso!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turmas & Alunos
+router.get('/turmas', (req, res) => {
+  try {
+    const turmas = db.prepare('SELECT * FROM turmas ORDER BY nome ASC').all();
+    res.json(turmas);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/turmas', (req, res) => {
+  try {
+    const { nome, anoLetivo, turno } = req.body;
+    const result = db.prepare('INSERT INTO turmas (nome, anoLetivo, turno) VALUES (?, ?, ?)').run(nome, anoLetivo || '2026', turno || 'Matutino');
+    res.json({ id: result.lastInsertRowid, message: 'Turma cadastrada com sucesso!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/alunos', (req, res) => {
+  try {
+    const alunos = db.prepare(`
+      SELECT a.*, t.nome as turmaNome
+      FROM alunos a
+      LEFT JOIN turmas t ON a.turmaId = t.id
+      ORDER BY a.nome ASC
+    `).all();
+    res.json(alunos);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/alunos', (req, res) => {
+  try {
+    const { nome, turmaId, responsavel, contato } = req.body;
+    const result = db.prepare('INSERT INTO alunos (nome, turmaId, responsavel, contato, status) VALUES (?, ?, ?, ?, "ativo")')
+      .run(nome, turmaId || null, responsavel || '', contato || '');
+    res.json({ id: result.lastInsertRowid, message: 'Aluno cadastrado com sucesso!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mensalidades
+router.get('/mensalidades', (req, res) => {
+  try {
+    const mensalidades = db.prepare(`
+      SELECT m.*, a.nome as alunoNome, a.responsavel, t.nome as turmaNome
+      FROM mensalidades m
+      JOIN alunos a ON m.alunoId = a.id
+      LEFT JOIN turmas t ON a.turmaId = t.id
+      ORDER BY m.vencimento DESC, m.id DESC
+    `).all();
+    res.json(mensalidades);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/mensalidades', (req, res) => {
+  try {
+    const { alunoId, mesReferencia, valor, vencimento } = req.body;
+    const result = db.prepare('INSERT INTO mensalidades (alunoId, mesReferencia, valor, vencimento, status) VALUES (?, ?, ?, ?, "pendente")')
+      .run(alunoId, mesReferencia, parseFloat(valor), vencimento);
+    res.json({ id: result.lastInsertRowid, message: 'Mensalidade gerada com sucesso!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/mensalidades/:id/pagar', (req, res) => {
+  try {
+    const { carteiraId, formaRecebimento } = req.body;
+    const mensId = parseInt(req.params.id);
+    const now = new Date().toISOString();
+
+    const mens = db.prepare('SELECT m.*, a.nome as alunoNome FROM mensalidades m JOIN alunos a ON m.alunoId = a.id WHERE m.id = ?').get(mensId) as any;
+    if (!mens) return res.status(404).json({ error: 'Mensalidade não encontrada' });
+
+    const transaction = db.transaction(() => {
+      // Registra a entrada na carteira
+      const entradaResult = db.prepare(`
+        INSERT INTO entradas (userId, carteiraId, valor, descricao, formaRecebimento, data, criadaEm, atualizadaEm)
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+      `).run(carteiraId, mens.valor, `Mensalidade ${mens.mesReferencia} - Aluno: ${mens.alunoNome}`, formaRecebimento || 'pix', now, now, now);
+
+      // Credita na carteira
+      db.prepare('UPDATE carteiras SET saldoAtual = saldoAtual + ? WHERE id = ?').run(mens.valor, carteiraId);
+
+      // Marca mensalidade como paga
+      db.prepare('UPDATE mensalidades SET status = "pago", entradaId = ? WHERE id = ?').run(entradaResult.lastInsertRowid, mensId);
+    });
+
+    transaction();
+    res.json({ message: 'Mensalidade quitada e valor creditado na carteira com sucesso!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Auth & Login Endpoint
 router.post('/auth/login', (req, res) => {
   try {
@@ -23,7 +193,6 @@ router.post('/auth/login', (req, res) => {
     let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
 
     if (!user) {
-      // Create new account with pending status
       const now = new Date().toISOString();
       const openId = Math.random().toString(36).substring(2, 15);
       const result = db.prepare(`
@@ -33,7 +202,6 @@ router.post('/auth/login', (req, res) => {
 
       user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     } else {
-      // Update last signed in
       const now = new Date().toISOString();
       db.prepare('UPDATE users SET lastSignedIn = ? WHERE id = ?').run(now, user.id);
     }
@@ -152,6 +320,10 @@ router.get('/dashboard', (req, res) => {
       .sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime())
       .slice(0, 10);
 
+    // Alerts
+    const produtosEstoqueBaixo = db.prepare('SELECT * FROM produtos WHERE quantidade <= 5').all();
+    const fornecedoresPendentes = db.prepare('SELECT * FROM fornecedores WHERE saldoPendente > 0').all();
+
     res.json({
       saldoTotal,
       totalEntradas: totalEntradas.total,
@@ -159,7 +331,11 @@ router.get('/dashboard', (req, res) => {
       pendenteFornecedores: pendenteFornecedores.total,
       fluxoCaixa,
       distribuicaoCarteiras,
-      ultimasMovimentacoes
+      ultimasMovimentacoes,
+      alertas: {
+        produtosEstoqueBaixo,
+        fornecedoresPendentes
+      }
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -218,9 +394,10 @@ router.get('/entradas', (req, res) => {
   try {
     const { carteiraId, inicio, fim } = req.query;
     let query = `
-      SELECT e.*, c.nome as carteiraNome
+      SELECT e.*, c.nome as carteiraNome, cat.nome as categoriaNome, cat.cor as categoriaCor
       FROM entradas e
       JOIN carteiras c ON e.carteiraId = c.id
+      LEFT JOIN categorias cat ON e.categoriaId = cat.id
       WHERE 1=1
     `;
     const params: any[] = [];
@@ -248,15 +425,15 @@ router.get('/entradas', (req, res) => {
 
 router.post('/entradas', (req, res) => {
   try {
-    const { carteiraId, valor, descricao, formaRecebimento, data } = req.body;
+    const { carteiraId, categoriaId, valor, descricao, formaRecebimento, data } = req.body;
     const now = new Date().toISOString();
     const val = parseFloat(valor);
 
     const transaction = db.transaction(() => {
       const result = db.prepare(`
-        INSERT INTO entradas (userId, carteiraId, valor, descricao, formaRecebimento, data, criadaEm, atualizadaEm)
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?)
-      `).run(carteiraId, val, descricao || '', formaRecebimento || 'dinheiro', data || now, now, now);
+        INSERT INTO entradas (userId, carteiraId, categoriaId, valor, descricao, formaRecebimento, data, criadaEm, atualizadaEm)
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(carteiraId, categoriaId || null, val, descricao || '', formaRecebimento || 'dinheiro', data || now, now, now);
 
       db.prepare('UPDATE carteiras SET saldoAtual = saldoAtual + ? WHERE id = ?').run(val, carteiraId);
       return result.lastInsertRowid;
@@ -291,10 +468,11 @@ router.get('/saidas', (req, res) => {
   try {
     const { carteiraId, inicio, fim } = req.query;
     let query = `
-      SELECT s.*, c.nome as carteiraNome, f.nome as fornecedorNome
+      SELECT s.*, c.nome as carteiraNome, f.nome as fornecedorNome, cat.nome as categoriaNome, cat.cor as categoriaCor
       FROM saidas s
       JOIN carteiras c ON s.carteiraId = c.id
       LEFT JOIN fornecedores f ON s.fornecedorId = f.id
+      LEFT JOIN categorias cat ON s.categoriaId = cat.id
       WHERE 1=1
     `;
     const params: any[] = [];
@@ -322,15 +500,15 @@ router.get('/saidas', (req, res) => {
 
 router.post('/saidas', (req, res) => {
   try {
-    const { carteiraId, valor, descricao, formaPagamento, fornecedorId, data } = req.body;
+    const { carteiraId, categoriaId, valor, descricao, formaPagamento, fornecedorId, data } = req.body;
     const now = new Date().toISOString();
     const val = parseFloat(valor);
 
     const transaction = db.transaction(() => {
       const result = db.prepare(`
-        INSERT INTO saidas (userId, carteiraId, valor, descricao, formaPagamento, fornecedorId, data, criadaEm, atualizadaEm)
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(carteiraId, val, descricao || '', formaPagamento || 'dinheiro', fornecedorId || null, data || now, now, now);
+        INSERT INTO saidas (userId, carteiraId, categoriaId, valor, descricao, formaPagamento, fornecedorId, data, criadaEm, atualizadaEm)
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(carteiraId, categoriaId || null, val, descricao || '', formaPagamento || 'dinheiro', fornecedorId || null, data || now, now, now);
 
       db.prepare('UPDATE carteiras SET saldoAtual = saldoAtual - ? WHERE id = ?').run(val, carteiraId);
       return result.lastInsertRowid;
@@ -396,16 +574,13 @@ router.post('/fornecedores/:id/pagar', (req, res) => {
     if (!fornecedor) return res.status(404).json({ error: 'Fornecedor não encontrado' });
 
     const transaction = db.transaction(() => {
-      // Registra a saída na carteira
       db.prepare(`
         INSERT INTO saidas (userId, carteiraId, fornecedorId, valor, descricao, formaPagamento, data, criadaEm, atualizadaEm)
         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(carteiraId, fornecedorId, val, `Pagamento a Fornecedor: ${fornecedor.nome}`, formaPagamento || 'dinheiro', now, now, now);
 
-      // Subtrai da carteira
       db.prepare('UPDATE carteiras SET saldoAtual = saldoAtual - ? WHERE id = ?').run(val, carteiraId);
 
-      // Abate do saldo pendente do fornecedor
       const novoPendente = Math.max(0, (fornecedor.saldoPendente || 0) - val);
       db.prepare('UPDATE fornecedores SET saldoPendente = ?, atualizadaEm = ? WHERE id = ?').run(novoPendente, now, fornecedorId);
     });
@@ -483,7 +658,7 @@ router.get('/relatorios/export-csv', (req, res) => {
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename=relatorio_financeiro_cepr.csv');
-    res.send('\uFEFF' + csv); // BOM UTF-8 for Excel
+    res.send('\uFEFF' + csv);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

@@ -1,6 +1,5 @@
 import initialData from '../../dados_financeiros_completos.json';
 
-// Utility for static fallback on GitHub Pages
 const IS_STATIC = typeof window !== 'undefined' && !window.location.host.includes('localhost:3000') && !window.location.host.includes('localhost:5000');
 
 function getStorage(key: string, defaultVal: any) {
@@ -20,7 +19,7 @@ function setStorage(key: string, val: any) {
   }
 }
 
-// Seed initial static storage if needed
+// Seed initial static storage
 if (IS_STATIC && typeof window !== 'undefined' && !localStorage.getItem('cepr_users')) {
   setStorage('users', initialData.tabelas.users.map((u: any) => ({ ...u, status: 'approved' })));
   setStorage('carteiras', initialData.tabelas.carteiras);
@@ -28,6 +27,28 @@ if (IS_STATIC && typeof window !== 'undefined' && !localStorage.getItem('cepr_us
   setStorage('saidas', initialData.tabelas.saidas);
   setStorage('fornecedores', []);
   setStorage('produtos', []);
+  setStorage('categorias', [
+    { id: 1, nome: 'Vendas Cantina', tipo: 'entrada', cor: '#10b981' },
+    { id: 2, nome: 'Mensalidades Escolares', tipo: 'entrada', cor: '#6366f1' },
+    { id: 3, nome: 'Eventos & Festas', tipo: 'entrada', cor: '#f59e0b' },
+    { id: 4, nome: 'Taxas de Matrícula', tipo: 'entrada', cor: '#06b6d4' },
+    { id: 5, nome: 'Insumos Cantina', tipo: 'saida', cor: '#f43f5e' },
+    { id: 6, nome: 'Material Didático', tipo: 'saida', cor: '#ec4899' },
+    { id: 7, nome: 'Manutenção & Obras', tipo: 'saida', cor: '#ef4444' },
+    { id: 8, nome: 'Alimentação & Bebidas', tipo: 'saida', cor: '#f97316' },
+  ]);
+  setStorage('turmas', [
+    { id: 1, nome: '6º Ano A', anoLetivo: '2026', turno: 'Matutino' },
+    { id: 2, nome: '7º Ano B', anoLetivo: '2026', turno: 'Vespertino' }
+  ]);
+  setStorage('alunos', [
+    { id: 1, nome: 'Beatriz Cortelini', turmaId: 1, turmaNome: '6º Ano A', responsavel: 'Elevi Cortelini', contato: '(47) 99911-2233', status: 'ativo' },
+    { id: 2, nome: 'Arthur Silva', turmaId: 1, turmaNome: '6º Ano A', responsavel: 'Roberto Silva', contato: '(47) 99944-5566', status: 'ativo' },
+  ]);
+  setStorage('mensalidades', [
+    { id: 1, alunoId: 1, alunoNome: 'Beatriz Cortelini', responsavel: 'Elevi Cortelini', turmaNome: '6º Ano A', mesReferencia: '2026-08', valor: 450, vencimento: '2026-08-10', status: 'pago' },
+    { id: 2, alunoId: 2, alunoNome: 'Arthur Silva', responsavel: 'Roberto Silva', turmaNome: '6º Ano A', mesReferencia: '2026-08', valor: 450, vencimento: '2026-08-10', status: 'pendente' },
+  ]);
 }
 
 export const api = {
@@ -36,13 +57,12 @@ export const api = {
       const res = await fetch('/api/dashboard');
       if (res.ok) return res.json();
     }
-    // Fallback static
     const carteiras = getStorage('carteiras', initialData.tabelas.carteiras);
     const entradas = getStorage('entradas', initialData.tabelas.entradas);
     const saidas = getStorage('saidas', initialData.tabelas.saidas);
     const fornecedores = getStorage('fornecedores', []);
+    const produtos = getStorage('produtos', []);
 
-    // Recalculate dynamic wallet balances
     const distribuicaoCarteiras = carteiras.map((c: any) => {
       const sumEnt = entradas.filter((e: any) => e.carteiraId === c.id).reduce((acc: number, e: any) => acc + (parseFloat(e.valor) || 0), 0);
       const sumSai = saidas.filter((s: any) => s.carteiraId === c.id).reduce((acc: number, s: any) => acc + (parseFloat(s.valor) || 0), 0);
@@ -54,7 +74,6 @@ export const api = {
     const totalSaidas = saidas.reduce((acc: number, s: any) => acc + (parseFloat(s.valor) || 0), 0);
     const pendenteFornecedores = fornecedores.reduce((acc: number, f: any) => acc + (parseFloat(f.saldoPendente) || 0), 0);
 
-    // Fluxo de Caixa por mês
     const mesesMap = new Map<string, { mes: string; entradas: number; saidas: number; liquido: number }>();
     entradas.forEach((e: any) => {
       const mes = e.data ? e.data.substring(0, 7) : '';
@@ -83,7 +102,158 @@ export const api = {
       .sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime())
       .slice(0, 10);
 
-    return { saldoTotal, totalEntradas, totalSaidas, pendenteFornecedores, fluxoCaixa, distribuicaoCarteiras, ultimasMovimentacoes };
+    const produtosEstoqueBaixo = produtos.filter((p: any) => parseInt(p.quantidade || 0) <= 5);
+    const fornecedoresPendentes = fornecedores.filter((f: any) => parseFloat(f.saldoPendente || 0) > 0);
+
+    return { 
+      saldoTotal, 
+      totalEntradas, 
+      totalSaidas, 
+      pendenteFornecedores, 
+      fluxoCaixa, 
+      distribuicaoCarteiras, 
+      ultimasMovimentacoes,
+      alertas: { produtosEstoqueBaixo, fornecedoresPendentes }
+    };
+  },
+
+  async getCategorias() {
+    if (!IS_STATIC) {
+      const res = await fetch('/api/categorias');
+      if (res.ok) return res.json();
+    }
+    return getStorage('categorias', []);
+  },
+
+  async createCategoria(data: any) {
+    if (!IS_STATIC) {
+      const res = await fetch('/api/categorias', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    }
+    const cats = getStorage('categorias', []);
+    const newC = { ...data, id: Date.now() };
+    cats.push(newC);
+    setStorage('categorias', cats);
+  },
+
+  async deleteCategoria(id: number) {
+    if (!IS_STATIC) {
+      await fetch(`/api/categorias/${id}`, { method: 'DELETE' });
+      return;
+    }
+    const cats = getStorage('categorias', []).filter((c: any) => c.id !== id);
+    setStorage('categorias', cats);
+  },
+
+  async getTurmas() {
+    if (!IS_STATIC) {
+      const res = await fetch('/api/turmas');
+      if (res.ok) return res.json();
+    }
+    return getStorage('turmas', []);
+  },
+
+  async createTurma(data: any) {
+    if (!IS_STATIC) {
+      const res = await fetch('/api/turmas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    }
+    const turmas = getStorage('turmas', []);
+    const newT = { ...data, id: Date.now() };
+    turmas.push(newT);
+    setStorage('turmas', turmas);
+  },
+
+  async getAlunos() {
+    if (!IS_STATIC) {
+      const res = await fetch('/api/alunos');
+      if (res.ok) return res.json();
+    }
+    return getStorage('alunos', []);
+  },
+
+  async createAluno(data: any) {
+    if (!IS_STATIC) {
+      const res = await fetch('/api/alunos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    }
+    const turmasMap = new Map((getStorage('turmas', []) as any[]).map((t: any) => [t.id, t.nome]));
+    const alunos = getStorage('alunos', []);
+    const newA = { ...data, id: Date.now(), turmaId: parseInt(data.turmaId), turmaNome: turmasMap.get(parseInt(data.turmaId)) || 'Sem Turma', status: 'ativo' };
+    alunos.push(newA);
+    setStorage('alunos', alunos);
+  },
+
+  async getMensalidades() {
+    if (!IS_STATIC) {
+      const res = await fetch('/api/mensalidades');
+      if (res.ok) return res.json();
+    }
+    return getStorage('mensalidades', []);
+  },
+
+  async createMensalidade(data: any) {
+    if (!IS_STATIC) {
+      const res = await fetch('/api/mensalidades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    }
+    const alunos = getStorage('alunos', []);
+    const aluno = alunos.find((a: any) => a.id === parseInt(data.alunoId));
+    const mensalidades = getStorage('mensalidades', []);
+    const newM = {
+      ...data,
+      id: Date.now(),
+      alunoId: parseInt(data.alunoId),
+      alunoNome: aluno ? aluno.nome : 'Aluno',
+      responsavel: aluno ? aluno.responsavel : '',
+      turmaNome: aluno ? aluno.turmaNome : '',
+      valor: parseFloat(data.valor),
+      status: 'pendente'
+    };
+    mensalidades.unshift(newM);
+    setStorage('mensalidades', mensalidades);
+  },
+
+  async payMensalidade(id: number, carteiraId: number, formaRecebimento: string) {
+    if (!IS_STATIC) {
+      await fetch(`/api/mensalidades/${id}/pagar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ carteiraId, formaRecebimento }),
+      });
+      return;
+    }
+    const mensalidades = getStorage('mensalidades', []);
+    const mens = mensalidades.find((m: any) => m.id === id);
+    if (!mens) return;
+
+    mens.status = 'pago';
+    setStorage('mensalidades', mensalidades);
+
+    // Create revenue entry
+    await this.createEntrada({
+      carteiraId,
+      valor: mens.valor,
+      descricao: `Mensalidade ${mens.mesReferencia} - Aluno: ${mens.alunoNome}`,
+      formaRecebimento: formaRecebimento || 'pix',
+      data: new Date().toISOString().split('T')[0]
+    });
   },
 
   async getUsers() {
@@ -148,7 +318,7 @@ export const api = {
         email,
         loginMethod: 'google',
         role: 'user',
-        status: 'pending', // New users need admin approval
+        status: 'pending',
         createdAt: new Date().toISOString(),
       };
       users.push(user);
@@ -179,8 +349,12 @@ export const api = {
       if (res.ok) return res.json();
     }
     const carteirasMap = new Map((getStorage('carteiras', []) as any[]).map((c: any) => [c.id, c.nome]));
+    const categoriasMap = new Map((getStorage('categorias', []) as any[]).map((cat: any) => [cat.id, cat]));
     const entradas = getStorage('entradas', []);
-    return entradas.map((e: any) => ({ ...e, carteiraNome: carteirasMap.get(e.carteiraId) || 'Carteira' }));
+    return entradas.map((e: any) => {
+      const cat = categoriasMap.get(e.categoriaId);
+      return { ...e, carteiraNome: carteirasMap.get(e.carteiraId) || 'Carteira', categoriaNome: cat?.nome, categoriaCor: cat?.cor };
+    });
   },
 
   async createEntrada(data: any) {
@@ -193,7 +367,13 @@ export const api = {
       return res.json();
     }
     const entradas = getStorage('entradas', []);
-    const newEntrada = { ...data, id: Date.now(), valor: parseFloat(data.valor), carteiraId: parseInt(data.carteiraId) };
+    const newEntrada = {
+      ...data,
+      id: Date.now(),
+      valor: parseFloat(data.valor),
+      carteiraId: parseInt(data.carteiraId),
+      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null
+    };
     entradas.unshift(newEntrada);
     setStorage('entradas', entradas);
   },
@@ -213,8 +393,12 @@ export const api = {
       if (res.ok) return res.json();
     }
     const carteirasMap = new Map((getStorage('carteiras', []) as any[]).map((c: any) => [c.id, c.nome]));
+    const categoriasMap = new Map((getStorage('categorias', []) as any[]).map((cat: any) => [cat.id, cat]));
     const saidas = getStorage('saidas', []);
-    return saidas.map((s: any) => ({ ...s, carteiraNome: carteirasMap.get(s.carteiraId) || 'Carteira' }));
+    return saidas.map((s: any) => {
+      const cat = categoriasMap.get(s.categoriaId);
+      return { ...s, carteiraNome: carteirasMap.get(s.carteiraId) || 'Carteira', categoriaNome: cat?.nome, categoriaCor: cat?.cor };
+    });
   },
 
   async createSaida(data: any) {
@@ -227,7 +411,13 @@ export const api = {
       return res.json();
     }
     const saidas = getStorage('saidas', []);
-    const newSaida = { ...data, id: Date.now(), valor: parseFloat(data.valor), carteiraId: parseInt(data.carteiraId) };
+    const newSaida = {
+      ...data,
+      id: Date.now(),
+      valor: parseFloat(data.valor),
+      carteiraId: parseInt(data.carteiraId),
+      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null
+    };
     saidas.unshift(newSaida);
     setStorage('saidas', saidas);
   },
@@ -294,5 +484,58 @@ export const api = {
     const newP = { ...data, id: Date.now() };
     produtos.push(newP);
     setStorage('produtos', produtos);
+  },
+
+  async exportBackupJSON() {
+    if (!IS_STATIC) {
+      window.open('/api/backup/export', '_blank');
+      return;
+    }
+    const backupData = {
+      formato: 'sistema-financeiro-escolar-export-v2',
+      exportadoEm: new Date().toISOString(),
+      tabelas: {
+        users: getStorage('users', []),
+        carteiras: getStorage('carteiras', []),
+        entradas: getStorage('entradas', []),
+        saidas: getStorage('saidas', []),
+        fornecedores: getStorage('fornecedores', []),
+        produtos: getStorage('produtos', []),
+        categorias: getStorage('categorias', []),
+        turmas: getStorage('turmas', []),
+        alunos: getStorage('alunos', []),
+        mensalidades: getStorage('mensalidades', []),
+      }
+    };
+    const jsonStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup_financeiro_cepr_${new Date().toISOString().substring(0,10)}.json`;
+    a.click();
+  },
+
+  async restoreBackupJSON(rawJsonText: string) {
+    try {
+      const data = JSON.parse(rawJsonText);
+      if (!data.tabelas) throw new Error('Formato de backup inválido');
+
+      if (data.tabelas.users) setStorage('users', data.tabelas.users);
+      if (data.tabelas.carteiras) setStorage('carteiras', data.tabelas.carteiras);
+      if (data.tabelas.entradas) setStorage('entradas', data.tabelas.entradas);
+      if (data.tabelas.saidas) setStorage('saidas', data.tabelas.saidas);
+      if (data.tabelas.fornecedores) setStorage('fornecedores', data.tabelas.fornecedores);
+      if (data.tabelas.produtos) setStorage('produtos', data.tabelas.produtos);
+      if (data.tabelas.categorias) setStorage('categorias', data.tabelas.categorias);
+      if (data.tabelas.turmas) setStorage('turmas', data.tabelas.turmas);
+      if (data.tabelas.alunos) setStorage('alunos', data.tabelas.alunos);
+      if (data.tabelas.mensalidades) setStorage('mensalidades', data.tabelas.mensalidades);
+
+      return true;
+    } catch (e: any) {
+      console.error(e);
+      return false;
+    }
   }
 };

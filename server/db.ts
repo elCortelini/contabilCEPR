@@ -90,6 +90,41 @@ export function initDb() {
       criadaEm TEXT,
       atualizadaEm TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS categorias (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      tipo TEXT CHECK(tipo IN ('entrada', 'saida')),
+      cor TEXT DEFAULT '#6366f1'
+    );
+
+    CREATE TABLE IF NOT EXISTS turmas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      anoLetivo TEXT DEFAULT '2026',
+      turno TEXT DEFAULT 'Matutino'
+    );
+
+    CREATE TABLE IF NOT EXISTS alunos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      turmaId INTEGER,
+      responsavel TEXT,
+      contato TEXT,
+      status TEXT DEFAULT 'ativo',
+      FOREIGN KEY (turmaId) REFERENCES turmas (id)
+    );
+
+    CREATE TABLE IF NOT EXISTS mensalidades (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      alunoId INTEGER NOT NULL,
+      mesReferencia TEXT NOT NULL,
+      valor REAL NOT NULL,
+      vencimento TEXT,
+      status TEXT DEFAULT 'pendente',
+      entradaId INTEGER,
+      FOREIGN KEY (alunoId) REFERENCES alunos (id)
+    );
   `);
 }
 

@@ -19,6 +19,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { api } from '../services/api';
+import { AlertasBanner } from '../components/AlertasBanner';
 
 export const Dashboard: React.FC = () => {
   const [data, setData] = useState<any>(null);
@@ -53,6 +54,11 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Alertas Banner */}
+      {data?.alertas && (
+        <AlertasBanner alertas={data.alertas} onNavigate={(tab) => window.dispatchEvent(new CustomEvent('changeTab', { detail: tab }))} />
+      )}
+
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Saldo Total */}

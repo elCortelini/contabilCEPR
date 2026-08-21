@@ -12,6 +12,10 @@ interface ExportData {
     saidas: any[];
     fornecedores?: any[];
     produtos?: any[];
+    categorias?: any[];
+    turmas?: any[];
+    alunos?: any[];
+    mensalidades?: any[];
   };
 }
 
@@ -31,6 +35,10 @@ export function importData() {
 
   const transaction = db.transaction(() => {
     // Clear old data
+    db.prepare('DELETE FROM mensalidades').run();
+    db.prepare('DELETE FROM alunos').run();
+    db.prepare('DELETE FROM turmas').run();
+    db.prepare('DELETE FROM categorias').run();
     db.prepare('DELETE FROM saidas').run();
     db.prepare('DELETE FROM entradas').run();
     db.prepare('DELETE FROM carteiras').run();
@@ -52,13 +60,13 @@ export function importData() {
         u.email || null,
         u.loginMethod || 'google',
         u.role || 'user',
-        'approved', // existing imported users are approved by default
+        'approved',
         u.createdAt || new Date().toISOString(),
         u.updatedAt || new Date().toISOString(),
         u.lastSignedIn || new Date().toISOString()
       );
     }
-    console.log(`✅ ${data.tabelas.users.length} usuários importados (Admin & Usuários Aprovados).`);
+    console.log(`✅ ${data.tabelas.users.length} usuários importados.`);
 
     // Map existing carteiras
     const carteiraIdsSet = new Set<number>();
@@ -89,7 +97,6 @@ export function importData() {
 
     for (const cid of referencedCarteiraIds) {
       if (!carteiraIdsSet.has(cid)) {
-        console.log(`ℹ️ Criando carteira histórica de suporte para ID #${cid}`);
         insertCarteira.run(
           cid,
           1,
@@ -104,7 +111,6 @@ export function importData() {
         carteiraIdsSet.add(cid);
       }
     }
-
     console.log(`✅ ${carteiraIdsSet.size} carteiras ativas preparadas.`);
 
     // Insert Entradas
@@ -155,6 +161,38 @@ export function importData() {
       );
     }
     console.log(`✅ ${data.tabelas.saidas.length} saídas importadas.`);
+
+    // Seed default categories
+    const defaultCategories = [
+      { nome: 'Vendas Cantina', tipo: 'entrada', cor: '#10b981' },
+      { nome: 'Mensalidades Escolares', tipo: 'entrada', cor: '#6366f1' },
+      { nome: 'Eventos & Festas', tipo: 'entrada', cor: '#f59e0b' },
+      { nome: 'Taxas de Matrícula', tipo: 'entrada', cor: '#06b6d4' },
+      { nome: 'Insumos Cantina', tipo: 'saida', cor: '#f43f5e' },
+      { nome: 'Material Didático', tipo: 'saida', cor: '#ec4899' },
+      { nome: 'Manutenção & Obras', tipo: 'saida', cor: '#ef4444' },
+      { nome: 'Alimentação & Bebidas', tipo: 'saida', cor: '#f97316' },
+      { nome: 'Salários & Pró-labore', tipo: 'saida', cor: '#a855f7' },
+    ];
+    const insCat = db.prepare('INSERT INTO categorias (nome, tipo, cor) VALUES (?, ?, ?)');
+    for (const cat of defaultCategories) insCat.run(cat.nome, cat.tipo, cat.cor);
+    console.log('✅ Categorias padrão inicializadas.');
+
+    // Seed default Turmas & Alunos
+    const insTurma = db.prepare('INSERT INTO turmas (nome, anoLetivo, turno) VALUES (?, ?, ?)');
+    const t1 = insTurma.run('6º Ano A', '2026', 'Matutino').lastInsertRowid;
+    const t2 = insTurma.run('7º Ano B', '2026', 'Vespertino').lastInsertRowid;
+
+    const insAluno = db.prepare('INSERT INTO alunos (nome, turmaId, responsavel, contato, status) VALUES (?, ?, ?, ?, ?)');
+    const a1 = insAluno.run('Beatriz Cortelini', t1, 'Elevi Cortelini', '(47) 99911-2233', 'ativo').lastInsertRowid;
+    const a2 = insAluno.run('Arthur Silva', t1, 'Roberto Silva', '(47) 99944-5566', 'ativo').lastInsertRowid;
+    const a3 = insAluno.run('Lucas Mendes', t2, 'Mariana Mendes', '(47) 99977-8899', 'ativo').lastInsertRowid;
+
+    const insMensalidade = db.prepare('INSERT INTO mensalidades (alunoId, mesReferencia, valor, vencimento, status) VALUES (?, ?, ?, ?, ?)');
+    insMensalidade.run(a1, '2026-08', 450.00, '2026-08-10', 'pago');
+    insMensalidade.run(a2, '2026-08', 450.00, '2026-08-10', 'pendente');
+    insMensalidade.run(a3, '2026-08', 450.00, '2026-08-10', 'pendente');
+    console.log('✅ Turmas, Alunos e Mensalidades de demonstração cadastrados.');
 
     // Recalculate dynamic balances for all wallets
     const carteiras = db.prepare('SELECT id, nome, saldoAtual FROM carteiras').all() as any[];

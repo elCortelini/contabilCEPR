@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Navbar } from './components/Navbar';
 import { Dashboard } from './pages/Dashboard';
@@ -9,6 +9,9 @@ import { Fornecedores } from './pages/Fornecedores';
 import { Produtos } from './pages/Produtos';
 import { Relatorios } from './pages/Relatorios';
 import { Usuarios } from './pages/Usuarios';
+import { Alunos } from './pages/Alunos';
+import { Categorias } from './pages/Categorias';
+import { BackupCenter } from './pages/BackupCenter';
 import { Login } from './pages/Login';
 
 export default function App() {
@@ -60,7 +63,6 @@ export default function App() {
       });
   };
 
-  // If user is not logged in, show Login Screen
   if (!currentUser || currentUser.status === 'blocked' || currentUser.status === 'pending') {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
@@ -86,9 +88,12 @@ export default function App() {
           {activeTab === 'carteiras' && <Carteiras />}
           {activeTab === 'entradas' && <Entradas />}
           {activeTab === 'saidas' && <Saidas />}
+          {activeTab === 'alunos' && <Alunos />}
+          {activeTab === 'categorias' && <Categorias />}
           {activeTab === 'fornecedores' && <Fornecedores />}
           {activeTab === 'produtos' && <Produtos />}
           {activeTab === 'relatorios' && <Relatorios />}
+          {activeTab === 'backup' && <BackupCenter />}
           {activeTab === 'usuarios' && <Usuarios currentUser={currentUser} />}
         </main>
       </div>

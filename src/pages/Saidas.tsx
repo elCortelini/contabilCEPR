@@ -1,18 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Trash2, TrendingDown, Wallet, Building2 } from 'lucide-react';
+import { Plus, Search, Trash2, TrendingDown, Wallet, Building2, Printer } from 'lucide-react';
 import { api } from '../services/api';
+import { ReciboPdf } from '../components/ReciboPdf';
 
 export const Saidas: React.FC = () => {
   const [saidas, setSaidas] = useState<any[]>([]);
   const [carteiras, setCarteiras] = useState<any[]>([]);
   const [fornecedores, setFornecedores] = useState<any[]>([]);
+  const [categorias, setCategorias] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCarteira, setSelectedCarteira] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [reciboItem, setReciboItem] = useState<any>(null);
 
   const [form, setForm] = useState({
     carteiraId: '',
+    categoriaId: '',
     valor: '',
     descricao: '',
     formaPagamento: 'dinheiro',
@@ -33,6 +37,9 @@ export const Saidas: React.FC = () => {
 
     const forns = await api.getFornecedores();
     setFornecedores(forns);
+
+    const cats = await api.getCategorias();
+    setCategorias(cats.filter((c: any) => c.tipo === 'saida'));
   };
 
   useEffect(() => {
@@ -45,6 +52,7 @@ export const Saidas: React.FC = () => {
     setModalOpen(false);
     setForm({
       carteiraId: carteiras[0]?.id?.toString() || '',
+      categoriaId: '',
       valor: '',
       descricao: '',
       formaPagamento: 'dinheiro',
@@ -75,6 +83,11 @@ export const Saidas: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Recibo Modal */}
+      {reciboItem && (
+        <ReciboPdf item={reciboItem} onClose={() => setReciboItem(null)} />
+      )}
+
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 rounded-2xl">
         <div>
@@ -137,7 +150,8 @@ export const Saidas: React.FC = () => {
               <tr>
                 <th className="py-3.5 px-4">ID</th>
                 <th className="py-3.5 px-4">Data</th>
-                <th className="py-3.5 px-4">Carteira de Origem</th>
+                <th className="py-3.5 px-4">Carteira Origem</th>
+                <th className="py-3.5 px-4">Categoria</th>
                 <th className="py-3.5 px-4">Descrição / Fornecedor</th>
                 <th className="py-3.5 px-4">Forma</th>
                 <th className="py-3.5 px-4 text-right">Valor</th>
@@ -157,6 +171,15 @@ export const Saidas: React.FC = () => {
                       {item.carteiraNome}
                     </span>
                   </td>
+                  <td className="py-3 px-4">
+                    {item.categoriaNome ? (
+                      <span className="px-2 py-0.5 rounded-md font-bold text-[10px]" style={{ backgroundColor: `${item.categoriaCor || '#f43f5e'}20`, color: item.categoriaCor || '#f43f5e' }}>
+                        {item.categoriaNome}
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 font-normal">—</span>
+                    )}
+                  </td>
                   <td className="py-3 px-4 font-normal text-slate-200">
                     <div>{item.descricao || 'Sem descrição'}</div>
                     {item.fornecedorNome && (
@@ -172,13 +195,22 @@ export const Saidas: React.FC = () => {
                     -{formatBrl(parseFloat(item.valor))}
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                      title="Excluir saída"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => setReciboItem({ ...item, tipo: 'saida', valor: parseFloat(item.valor), forma: item.formaPagamento })}
+                        className="p-1.5 rounded-lg text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
+                        title="Gerar / Imprimir Recibo PDF"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                        title="Excluir saída"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -208,6 +240,20 @@ export const Saidas: React.FC = () => {
                     <option key={c.id} value={c.id}>
                       {c.nome} ({formatBrl(c.saldoAtual)})
                     </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Categoria (Opcional)</label>
+                <select
+                  value={form.categoriaId}
+                  onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">Sem categoria</option>
+                  {categorias.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.nome}</option>
                   ))}
                 </select>
               </div>
