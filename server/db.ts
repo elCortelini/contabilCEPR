@@ -15,8 +15,9 @@ export function initDb() {
       openId TEXT UNIQUE,
       name TEXT,
       email TEXT,
-      loginMethod TEXT,
+      loginMethod TEXT DEFAULT 'google',
       role TEXT DEFAULT 'user',
+      status TEXT DEFAULT 'approved',
       createdAt TEXT,
       updatedAt TEXT,
       lastSignedIn TEXT

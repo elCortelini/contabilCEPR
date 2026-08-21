@@ -14,6 +14,77 @@ router.post('/importar', (req, res) => {
   }
 });
 
+// Auth & Login Endpoint
+router.post('/auth/login', (req, res) => {
+  try {
+    const { email, name } = req.body;
+    if (!email) return res.status(400).json({ error: 'E-mail é obrigatório' });
+
+    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+
+    if (!user) {
+      // Create new account with pending status
+      const now = new Date().toISOString();
+      const openId = Math.random().toString(36).substring(2, 15);
+      const result = db.prepare(`
+        INSERT INTO users (openId, name, email, loginMethod, role, status, createdAt, updatedAt, lastSignedIn)
+        VALUES (?, ?, ?, 'google', 'user', 'pending', ?, ?, ?)
+      `).run(openId, name || email.split('@')[0], email, now, now, now);
+
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+    } else {
+      // Update last signed in
+      const now = new Date().toISOString();
+      db.prepare('UPDATE users SET lastSignedIn = ? WHERE id = ?').run(now, user.id);
+    }
+
+    res.json(user);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Users Management (Admin)
+router.get('/users', (req, res) => {
+  try {
+    const users = db.prepare('SELECT * FROM users ORDER BY role DESC, id ASC').all();
+    res.json(users);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/users/:id/approve', (req, res) => {
+  try {
+    const now = new Date().toISOString();
+    db.prepare('UPDATE users SET status = "approved", updatedAt = ? WHERE id = ?').run(now, req.params.id);
+    res.json({ message: 'Acesso do usuário aprovado com sucesso!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/users/:id/block', (req, res) => {
+  try {
+    const now = new Date().toISOString();
+    db.prepare('UPDATE users SET status = "blocked", updatedAt = ? WHERE id = ?').run(now, req.params.id);
+    res.json({ message: 'Acesso do usuário bloqueado com sucesso!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/users/:id/role', (req, res) => {
+  try {
+    const { role } = req.body;
+    const now = new Date().toISOString();
+    db.prepare('UPDATE users SET role = ?, updatedAt = ? WHERE id = ?').run(role, now, req.params.id);
+    res.json({ message: 'Função do usuário atualizada!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Dashboard metrics & charts data
 router.get('/dashboard', (req, res) => {
   try {
@@ -62,7 +133,7 @@ router.get('/dashboard', (req, res) => {
       tipo: c.tipo
     }));
 
-    // Recent transactions (top 15)
+    // Recent transactions (top 10)
     const entradasRecentes = db.prepare(`
       SELECT e.id, 'entrada' as tipo, e.data, e.valor, e.descricao, e.formaRecebimento as forma, c.nome as carteiraNome
       FROM entradas e

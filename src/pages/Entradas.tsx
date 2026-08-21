@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Filter, Trash2, TrendingUp, Calendar, Wallet } from 'lucide-react';
+import { Plus, Search, Trash2, TrendingUp, Wallet } from 'lucide-react';
+import { api } from '../services/api';
 
 export const Entradas: React.FC = () => {
   const [entradas, setEntradas] = useState<any[]>([]);
@@ -17,49 +18,40 @@ export const Entradas: React.FC = () => {
     data: new Date().toISOString().split('T')[0],
   });
 
-  const loadData = () => {
-    fetch('/api/entradas')
-      .then((res) => res.json())
-      .then((res) => {
-        setEntradas(res);
-        setLoading(false);
-      });
-    fetch('/api/carteiras')
-      .then((res) => res.json())
-      .then((res) => {
-        setCarteiras(res);
-        if (res.length > 0 && !form.carteiraId) {
-          setForm((prev) => ({ ...prev, carteiraId: res[0].id.toString() }));
-        }
-      });
+  const loadData = async () => {
+    const list = await api.getEntradas();
+    setEntradas(list);
+    setLoading(false);
+
+    const carts = await api.getCarteiras();
+    setCarteiras(carts);
+    if (carts.length > 0 && !form.carteiraId) {
+      setForm((prev) => ({ ...prev, carteiraId: carts[0].id.toString() }));
+    }
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    fetch('/api/entradas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    }).then(() => {
-      setModalOpen(false);
-      setForm({
-        carteiraId: carteiras[0]?.id?.toString() || '',
-        valor: '',
-        descricao: '',
-        formaRecebimento: 'dinheiro',
-        data: new Date().toISOString().split('T')[0],
-      });
-      loadData();
+    await api.createEntrada(form);
+    setModalOpen(false);
+    setForm({
+      carteiraId: carteiras[0]?.id?.toString() || '',
+      valor: '',
+      descricao: '',
+      formaRecebimento: 'dinheiro',
+      data: new Date().toISOString().split('T')[0],
     });
+    loadData();
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Tem certeza que deseja excluir esta receita? O saldo da carteira será ajustado.')) {
-      fetch(`/api/entradas/${id}`, { method: 'DELETE' }).then(() => loadData());
+      await api.deleteEntrada(id);
+      loadData();
     }
   };
 
@@ -73,7 +65,7 @@ export const Entradas: React.FC = () => {
     return matchesSearch && matchesCarteira;
   });
 
-  const totalFiltrado = filtered.reduce((acc, curr) => acc + (curr.valor || 0), 0);
+  const totalFiltrado = filtered.reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0);
 
   return (
     <div className="p-6 space-y-6">
@@ -166,7 +158,7 @@ export const Entradas: React.FC = () => {
                     {item.formaRecebimento}
                   </td>
                   <td className="py-3 px-4 text-right font-black text-emerald-400">
-                    +{formatBrl(item.valor)}
+                    +{formatBrl(parseFloat(item.valor))}
                   </td>
                   <td className="py-3 px-4 text-center">
                     <button

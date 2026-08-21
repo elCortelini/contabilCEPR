@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Users, Plus, DollarSign, Building2, Phone, MapPin } from 'lucide-react';
+import { api } from '../services/api';
 
 export const Fornecedores: React.FC = () => {
   const [fornecedores, setFornecedores] = useState<any[]>([]);
@@ -22,58 +23,53 @@ export const Fornecedores: React.FC = () => {
     formaPagamento: 'dinheiro',
   });
 
-  const loadData = () => {
-    fetch('/api/fornecedores')
-      .then((res) => res.json())
-      .then((res) => setFornecedores(res));
-    fetch('/api/carteiras')
-      .then((res) => res.json())
-      .then((res) => {
-        setCarteiras(res);
-        if (res.length > 0 && !payForm.carteiraId) {
-          setPayForm((prev) => ({ ...prev, carteiraId: res[0].id.toString() }));
-        }
-      });
+  const loadData = async () => {
+    const list = await api.getFornecedores();
+    setFornecedores(list);
+    const carts = await api.getCarteiras();
+    setCarteiras(carts);
+    if (carts.length > 0 && !payForm.carteiraId) {
+      setPayForm((prev) => ({ ...prev, carteiraId: carts[0].id.toString() }));
+    }
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    fetch('/api/fornecedores', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newForm),
-    }).then(() => {
-      setModalNewOpen(false);
-      setNewForm({ nome: '', contato: '', endereco: '', observacoes: '', saldoPendente: '0' });
-      loadData();
-    });
+    await api.createFornecedor(newForm);
+    setModalNewOpen(false);
+    setNewForm({ nome: '', contato: '', endereco: '', observacoes: '', saldoPendente: '0' });
+    loadData();
   };
 
-  const handlePaySubmit = (e: React.FormEvent) => {
+  const handlePaySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFornecedor) return;
 
-    fetch(`/api/fornecedores/${selectedFornecedor.id}/pagar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payForm),
-    }).then(() => {
-      setModalPayOpen(false);
-      setSelectedFornecedor(null);
-      setPayForm({ carteiraId: carteiras[0]?.id?.toString() || '', valor: '', formaPagamento: 'dinheiro' });
-      loadData();
+    // Create saida
+    await api.createSaida({
+      carteiraId: payForm.carteiraId,
+      valor: payForm.valor,
+      descricao: `Pagamento Fornecedor: ${selectedFornecedor.nome}`,
+      formaPagamento: payForm.formaPagamento,
+      fornecedorId: selectedFornecedor.id,
+      data: new Date().toISOString().split('T')[0],
     });
+
+    setModalPayOpen(false);
+    setSelectedFornecedor(null);
+    setPayForm({ carteiraId: carteiras[0]?.id?.toString() || '', valor: '', formaPagamento: 'dinheiro' });
+    loadData();
   };
 
   const formatBrl = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
   };
 
-  const totalPendente = fornecedores.reduce((acc, f) => acc + (f.saldoPendente || 0), 0);
+  const totalPendente = fornecedores.reduce((acc, f) => acc + (parseFloat(f.saldoPendente) || 0), 0);
 
   return (
     <div className="p-6 space-y-6">

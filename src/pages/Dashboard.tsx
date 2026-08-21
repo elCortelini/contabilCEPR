@@ -6,7 +6,6 @@ import {
   AlertCircle,
   ArrowUpRight,
   ArrowDownRight,
-  Receipt,
   Building2,
   PieChart as PieIcon
 } from 'lucide-react';
@@ -17,19 +16,16 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  Legend
+  ResponsiveContainer
 } from 'recharts';
+import { api } from '../services/api';
 
 export const Dashboard: React.FC = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/dashboard')
-      .then((res) => res.json())
+    api.getDashboard()
       .then((res) => {
         setData(res);
         setLoading(false);
@@ -73,7 +69,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className="mt-4 flex items-center gap-2 text-xs text-emerald-400 font-medium">
-            <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">4 Carteiras Ativas</span>
+            <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">Carteiras Ativas</span>
             <span className="text-slate-400">• Atualizado</span>
           </div>
         </div>

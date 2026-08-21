@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Package, Plus, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Package, Plus } from 'lucide-react';
+import { api } from '../services/api';
 
 export const Produtos: React.FC = () => {
   const [produtos, setProdutos] = useState<any[]>([]);
@@ -15,30 +16,23 @@ export const Produtos: React.FC = () => {
     custoUnitario: '0.00',
   });
 
-  const loadData = () => {
-    fetch('/api/produtos')
-      .then((res) => res.json())
-      .then((res) => setProdutos(res));
-    fetch('/api/fornecedores')
-      .then((res) => res.json())
-      .then((res) => setFornecedores(res));
+  const loadData = async () => {
+    const list = await api.getProdutos();
+    setProdutos(list);
+    const forns = await api.getFornecedores();
+    setFornecedores(forns);
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    fetch('/api/produtos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    }).then(() => {
-      setModalOpen(false);
-      setForm({ nome: '', descricao: '', fornecedorId: '', quantidade: '0', precoUnitario: '0.00', custoUnitario: '0.00' });
-      loadData();
-    });
+    await api.createProduto(form);
+    setModalOpen(false);
+    setForm({ nome: '', descricao: '', fornecedorId: '', quantidade: '0', precoUnitario: '0.00', custoUnitario: '0.00' });
+    loadData();
   };
 
   const formatBrl = (val: number) => {

@@ -1,17 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, Download, Wallet, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { FileText, Download, Wallet } from 'lucide-react';
+import { api } from '../services/api';
 
 export const Relatorios: React.FC = () => {
   const [data, setData] = useState<any>(null);
   const [carteiras, setCarteiras] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/dashboard')
-      .then((res) => res.json())
-      .then((res) => setData(res));
-    fetch('/api/carteiras')
-      .then((res) => res.json())
-      .then((res) => setCarteiras(res));
+    api.getDashboard().then((res) => setData(res));
+    api.getCarteiras().then((res) => setCarteiras(res));
   }, []);
 
   const formatBrl = (val: number) => {

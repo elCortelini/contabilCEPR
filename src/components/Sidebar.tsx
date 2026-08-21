@@ -8,15 +8,18 @@ import {
   Package, 
   FileText,
   School,
-  Sparkles
+  Shield,
+  LogOut
 } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  currentUser: any;
+  onLogout: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
     { id: 'carteiras', label: 'Carteiras', icon: Wallet, badge: '4' },
@@ -25,6 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
     { id: 'fornecedores', label: 'Fornecedores', icon: Users, badge: null },
     { id: 'produtos', label: 'Produtos & Estoque', icon: Package, badge: null },
     { id: 'relatorios', label: 'Relatórios & CSV', icon: FileText, badge: null },
+    { id: 'usuarios', label: 'Controle de Acessos', icon: Shield, badge: currentUser?.role === 'admin' ? 'Admin' : null },
   ];
 
   return (
@@ -64,7 +68,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
                 </div>
                 {item.badge && (
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                    isActive ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-800 text-slate-400 border border-slate-700'
+                    isActive
+                      ? 'bg-indigo-700 text-indigo-100'
+                      : item.badge === 'Admin'
+                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                      : 'bg-slate-800 text-slate-400 border border-slate-700'
                   }`}>
                     {item.badge}
                   </span>
@@ -75,19 +83,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         </nav>
       </div>
 
-      {/* Footer Info */}
-      <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center font-bold text-indigo-400 text-sm">
-            EC
+      {/* Footer User Info & Logout */}
+      <div className="p-4 border-t border-slate-800/80 bg-slate-950/40 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center font-bold text-indigo-400 text-xs">
+              {currentUser?.name ? currentUser.name.substring(0, 2).toUpperCase() : 'US'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-slate-200 truncate">{currentUser?.name || 'Usuário'}</p>
+              <p className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                {currentUser?.role === 'admin' ? 'Admin Supremo' : 'Operador Autorizado'}
+              </p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-slate-200 truncate">Elevi Cortelini</p>
-            <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Admin • Base 100% OK
-            </p>
-          </div>
+
+          <button
+            onClick={onLogout}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+            title="Sair do sistema"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </aside>

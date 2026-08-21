@@ -24,7 +24,6 @@ export function importData() {
     return false;
   }
 
-  // Remove database file if locked or reset tables
   const raw = fs.readFileSync(jsonPath, 'utf-8');
   const data: ExportData = JSON.parse(raw);
 
@@ -41,8 +40,8 @@ export function importData() {
 
     // Insert Users
     const insertUser = db.prepare(`
-      INSERT INTO users (id, openId, name, email, loginMethod, role, createdAt, updatedAt, lastSignedIn)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (id, openId, name, email, loginMethod, role, status, createdAt, updatedAt, lastSignedIn)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (const u of data.tabelas.users || []) {
@@ -53,12 +52,13 @@ export function importData() {
         u.email || null,
         u.loginMethod || 'google',
         u.role || 'user',
+        'approved', // existing imported users are approved by default
         u.createdAt || new Date().toISOString(),
         u.updatedAt || new Date().toISOString(),
         u.lastSignedIn || new Date().toISOString()
       );
     }
-    console.log(`✅ ${data.tabelas.users.length} usuários importados.`);
+    console.log(`✅ ${data.tabelas.users.length} usuários importados (Admin & Usuários Aprovados).`);
 
     // Map existing carteiras
     const carteiraIdsSet = new Set<number>();

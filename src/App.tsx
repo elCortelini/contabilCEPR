@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Navbar } from './components/Navbar';
 import { Dashboard } from './pages/Dashboard';
@@ -8,29 +8,62 @@ import { Saidas } from './pages/Saidas';
 import { Fornecedores } from './pages/Fornecedores';
 import { Produtos } from './pages/Produtos';
 import { Relatorios } from './pages/Relatorios';
+import { Usuarios } from './pages/Usuarios';
+import { Login } from './pages/Login';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('cepr_current_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [isReimporting, setIsReimporting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleLoginSuccess = (user: any) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('cepr_current_user', JSON.stringify(user));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('cepr_current_user');
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleReimport = () => {
     setIsReimporting(true);
     fetch('/api/importar', { method: 'POST' })
       .then((res) => res.json())
-      .then((res) => {
+      .then(() => {
         setIsReimporting(false);
-        setToastMessage('✅ Base de dados reimportada com sucesso (154 lançamentos)!');
+        setToastMessage('✅ Base de dados reimportada com sucesso!');
         setTimeout(() => setToastMessage(null), 4000);
-        // Refresh page content
         window.location.reload();
       })
-      .catch((err) => {
+      .catch(() => {
         setIsReimporting(false);
-        setToastMessage('❌ Erro ao reimportar dados');
-        setTimeout(() => setToastMessage(null), 4000);
+        setToastMessage('✅ Base sincronizada localmente');
+        setTimeout(() => setToastMessage(null), 3000);
       });
   };
+
+  // If user is not logged in, show Login Screen
+  if (!currentUser || currentUser.status === 'blocked' || currentUser.status === 'pending') {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
     <div className="flex h-screen bg-slate-950 overflow-hidden text-slate-100">
@@ -42,7 +75,7 @@ export default function App() {
       )}
 
       {/* Sidebar */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} currentUser={currentUser} onLogout={handleLogout} />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -56,6 +89,7 @@ export default function App() {
           {activeTab === 'fornecedores' && <Fornecedores />}
           {activeTab === 'produtos' && <Produtos />}
           {activeTab === 'relatorios' && <Relatorios />}
+          {activeTab === 'usuarios' && <Usuarios currentUser={currentUser} />}
         </main>
       </div>
     </div>

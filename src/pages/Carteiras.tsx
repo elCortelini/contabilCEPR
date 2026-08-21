@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Wallet, Plus, Building2, CreditCard, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Wallet, Plus, Building2 } from 'lucide-react';
+import { api } from '../services/api';
 
 export const Carteiras: React.FC = () => {
   const [carteiras, setCarteiras] = useState<any[]>([]);
@@ -8,12 +9,10 @@ export const Carteiras: React.FC = () => {
   const [form, setForm] = useState({ nome: '', descricao: '', tipo: 'dinheiro', saldoAtual: '0' });
 
   const loadCarteiras = () => {
-    fetch('/api/carteiras')
-      .then((res) => res.json())
-      .then((res) => {
-        setCarteiras(res);
-        setLoading(false);
-      });
+    api.getCarteiras().then((res) => {
+      setCarteiras(res);
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
@@ -29,6 +28,9 @@ export const Carteiras: React.FC = () => {
     }).then(() => {
       setModalOpen(false);
       setForm({ nome: '', descricao: '', tipo: 'dinheiro', saldoAtual: '0' });
+      loadCarteiras();
+    }).catch(() => {
+      setModalOpen(false);
       loadCarteiras();
     });
   };
@@ -124,7 +126,7 @@ export const Carteiras: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Tipo de Cuenta</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Tipo de Conta</label>
                 <select
                   value={form.tipo}
                   onChange={(e) => setForm({ ...form, tipo: e.target.value })}
