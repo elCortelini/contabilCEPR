@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Trash2, TrendingUp, Wallet, Printer } from 'lucide-react';
+import { Plus, Search, Trash2, TrendingUp, Wallet, Printer, Calendar, RefreshCw } from 'lucide-react';
 import { api } from '../services/api';
 import { ReciboPdf } from '../components/ReciboPdf';
 
@@ -10,6 +10,9 @@ export const Entradas: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCarteira, setSelectedCarteira] = useState('');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
+
   const [modalOpen, setModalOpen] = useState(false);
   const [reciboItem, setReciboItem] = useState<any>(null);
 
@@ -63,6 +66,13 @@ export const Entradas: React.FC = () => {
     }
   };
 
+  const clearFilters = () => {
+    setSearch('');
+    setSelectedCarteira('');
+    setDataInicio('');
+    setDataFim('');
+  };
+
   const formatBrl = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
   };
@@ -70,7 +80,12 @@ export const Entradas: React.FC = () => {
   const filtered = entradas.filter((e) => {
     const matchesSearch = e.descricao?.toLowerCase().includes(search.toLowerCase()) || e.carteiraNome?.toLowerCase().includes(search.toLowerCase());
     const matchesCarteira = !selectedCarteira || e.carteiraId.toString() === selectedCarteira;
-    return matchesSearch && matchesCarteira;
+
+    const itemDate = e.data ? e.data.substring(0, 10) : '';
+    const matchesInicio = !dataInicio || itemDate >= dataInicio;
+    const matchesFim = !dataFim || itemDate <= dataFim;
+
+    return matchesSearch && matchesCarteira && matchesInicio && matchesFim;
   });
 
   const totalFiltrado = filtered.reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0);
@@ -94,7 +109,7 @@ export const Entradas: React.FC = () => {
 
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <span className="text-xs text-slate-400 font-medium">Total Filtrado</span>
+            <span className="text-xs text-slate-400 font-medium">Total no Período ({filtered.length})</span>
             <p className="text-xl font-black text-emerald-400">{formatBrl(totalFiltrado)}</p>
           </div>
           <button
@@ -107,32 +122,75 @@ export const Entradas: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="flex flex-col md:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Buscar por descrição ou carteira..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
-          />
+      {/* Filter Bar with Period Dates */}
+      <div className="glass-card p-4 rounded-2xl space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 uppercase tracking-wider">
+            <Calendar className="w-4 h-4 text-indigo-400" />
+            Filtros & Pesquisa por Período
+          </span>
+          {(search || selectedCarteira || dataInicio || dataFim) && (
+            <button
+              onClick={clearFilters}
+              className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Limpar Filtros
+            </button>
+          )}
         </div>
 
-        <div className="w-full md:w-64">
-          <select
-            value={selectedCarteira}
-            onChange={(e) => setSelectedCarteira(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
-          >
-            <option value="">Todas as Carteiras ({carteiras.length})</option>
-            {carteiras.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Buscar por descrição..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          {/* Carteira Selector */}
+          <div>
+            <select
+              value={selectedCarteira}
+              onChange={(e) => setSelectedCarteira(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">Todas as Carteiras ({carteiras.length})</option>
+              {carteiras.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Data Inicial */}
+          <div>
+            <div className="relative">
+              <input
+                type="date"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+          </div>
+
+          {/* Data Final */}
+          <div>
+            <div className="relative">
+              <input
+                type="date"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
