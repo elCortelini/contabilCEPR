@@ -1,0 +1,34 @@
+{
+  "formato": "sistema-financeiro-escolar-export-v1",
+  "exportadoEm": "2026-08-21T11:39:45.419Z",
+  "contagens": {
+    "users": 3,
+    "carteiras": 4,
+    "fornecedores": 0,
+    "produtos": 0,
+    "categoriasEntrada": 0,
+    "categoriasSaida": 0,
+    "entradas": 99,
+    "saidas": 55,
+    "transferencias": 0,
+    "contasAPagar": 0,
+    "contasAReceber": 0,
+    "pagamentosContas": 0,
+    "recebimentosContas": 0
+  },
+  "arquivosCsv": [
+    "csv/users.csv",
+    "csv/carteiras.csv",
+    "csv/fornecedores.csv",
+    "csv/produtos.csv",
+    "csv/categoriasEntrada.csv",
+    "csv/categoriasSaida.csv",
+    "csv/entradas.csv",
+    "csv/saidas.csv",
+    "csv/transferencias.csv",
+    "csv/contasAPagar.csv",
+    "csv/contasAReceber.csv",
+    "csv/pagamentosContas.csv",
+    "csv/recebimentosContas.csv"
+  ]
+}

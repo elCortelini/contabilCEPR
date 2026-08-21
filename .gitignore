@@ -1,0 +1,6 @@
+node_modules/
+node-v20.18.1-win-x64/
+dist/
+temp_zip/
+.env
+*.log
