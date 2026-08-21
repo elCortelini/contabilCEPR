@@ -56,7 +56,7 @@ export const Dashboard: React.FC = () => {
     <div className="p-6 space-y-6">
       {/* Alertas Banner */}
       {data?.alertas && (
-        <AlertasBanner alertas={data.alertas} onNavigate={(tab) => window.dispatchEvent(new CustomEvent('changeTab', { detail: tab }))} />
+        <AlertasBanner alertas={data.alertas} onNavigate={(tab: string) => window.dispatchEvent(new CustomEvent('changeTab', { detail: tab }))} />
       )}
 
       {/* KPI Cards Grid */}
