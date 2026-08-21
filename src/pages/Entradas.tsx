@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Trash2, TrendingUp, Wallet, Printer, Calendar, RefreshCw } from 'lucide-react';
+import { Plus, Search, Trash2, TrendingUp, Wallet, Printer, Calendar, RefreshCw, CreditCard } from 'lucide-react';
 import { api } from '../services/api';
 import { ReciboPdf } from '../components/ReciboPdf';
 
@@ -8,8 +8,11 @@ export const Entradas: React.FC = () => {
   const [carteiras, setCarteiras] = useState<any[]>([]);
   const [categorias, setCategorias] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filters
   const [search, setSearch] = useState('');
   const [selectedCarteira, setSelectedCarteira] = useState('');
+  const [selectedForma, setSelectedForma] = useState('');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
 
@@ -69,6 +72,7 @@ export const Entradas: React.FC = () => {
   const clearFilters = () => {
     setSearch('');
     setSelectedCarteira('');
+    setSelectedForma('');
     setDataInicio('');
     setDataFim('');
   };
@@ -80,12 +84,13 @@ export const Entradas: React.FC = () => {
   const filtered = entradas.filter((e) => {
     const matchesSearch = e.descricao?.toLowerCase().includes(search.toLowerCase()) || e.carteiraNome?.toLowerCase().includes(search.toLowerCase());
     const matchesCarteira = !selectedCarteira || e.carteiraId.toString() === selectedCarteira;
+    const matchesForma = !selectedForma || (e.formaRecebimento || '').toLowerCase() === selectedForma.toLowerCase();
 
     const itemDate = e.data ? e.data.substring(0, 10) : '';
     const matchesInicio = !dataInicio || itemDate >= dataInicio;
     const matchesFim = !dataFim || itemDate <= dataFim;
 
-    return matchesSearch && matchesCarteira && matchesInicio && matchesFim;
+    return matchesSearch && matchesCarteira && matchesForma && matchesInicio && matchesFim;
   });
 
   const totalFiltrado = filtered.reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0);
@@ -109,7 +114,7 @@ export const Entradas: React.FC = () => {
 
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <span className="text-xs text-slate-400 font-medium">Total no Período ({filtered.length})</span>
+            <span className="text-xs text-slate-400 font-medium">Total Filtrado ({filtered.length} itens)</span>
             <p className="text-xl font-black text-emerald-400">{formatBrl(totalFiltrado)}</p>
           </div>
           <button
@@ -122,14 +127,14 @@ export const Entradas: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Bar with Period Dates */}
+      {/* Filter Bar with All 4 Filters: Search, Carteira, Forma Recebimento, Data Inicio & Fim */}
       <div className="glass-card p-4 rounded-2xl space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 uppercase tracking-wider">
             <Calendar className="w-4 h-4 text-indigo-400" />
-            Filtros & Pesquisa por Período
+            Filtros por Período, Carteira e Forma de Recebimento
           </span>
-          {(search || selectedCarteira || dataInicio || dataFim) && (
+          {(search || selectedCarteira || selectedForma || dataInicio || dataFim) && (
             <button
               onClick={clearFilters}
               className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 cursor-pointer"
@@ -139,20 +144,20 @@ export const Entradas: React.FC = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Search */}
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Buscar por descrição..."
+              placeholder="Buscar descrição..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
             />
           </div>
 
-          {/* Carteira Selector */}
+          {/* Carteira Filter */}
           <div>
             <select
               value={selectedCarteira}
@@ -168,28 +173,41 @@ export const Entradas: React.FC = () => {
             </select>
           </div>
 
+          {/* Forma de Recebimento Filter */}
+          <div>
+            <select
+              value={selectedForma}
+              onChange={(e) => setSelectedForma(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">Todas as Formas</option>
+              <option value="dinheiro">Dinheiro</option>
+              <option value="pix">PIX</option>
+              <option value="cartao">Cartão</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+
           {/* Data Inicial */}
           <div>
-            <div className="relative">
-              <input
-                type="date"
-                value={dataInicio}
-                onChange={(e) => setDataInicio(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
+            <input
+              type="date"
+              title="Data Inicial"
+              value={dataInicio}
+              onChange={(e) => setDataInicio(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+            />
           </div>
 
           {/* Data Final */}
           <div>
-            <div className="relative">
-              <input
-                type="date"
-                value={dataFim}
-                onChange={(e) => setDataFim(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
+            <input
+              type="date"
+              title="Data Final"
+              value={dataFim}
+              onChange={(e) => setDataFim(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+            />
           </div>
         </div>
       </div>
