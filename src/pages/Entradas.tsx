@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Trash2, TrendingUp, Wallet, Printer, Calendar, RefreshCw, CreditCard } from 'lucide-react';
+import { Plus, Search, Trash2, TrendingUp, Wallet, Printer, Calendar, RefreshCw, Pencil, Sun, Moon, Clock } from 'lucide-react';
 import { api } from '../services/api';
 import { ReciboPdf } from '../components/ReciboPdf';
 
@@ -13,10 +13,13 @@ export const Entradas: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedCarteira, setSelectedCarteira] = useState('');
   const [selectedForma, setSelectedForma] = useState('');
+  const [selectedTurno, setSelectedTurno] = useState('');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
 
+  // Modals
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [reciboItem, setReciboItem] = useState<any>(null);
 
   const [form, setForm] = useState({
@@ -25,6 +28,7 @@ export const Entradas: React.FC = () => {
     valor: '',
     descricao: '',
     formaRecebimento: 'dinheiro',
+    turno: 'Matutino',
     data: new Date().toISOString().split('T')[0],
   });
 
@@ -47,18 +51,43 @@ export const Entradas: React.FC = () => {
     loadData();
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await api.createEntrada(form);
-    setModalOpen(false);
+  const handleOpenCreate = () => {
+    setEditingItem(null);
     setForm({
       carteiraId: carteiras[0]?.id?.toString() || '',
       categoriaId: '',
       valor: '',
       descricao: '',
       formaRecebimento: 'dinheiro',
+      turno: 'Matutino',
       data: new Date().toISOString().split('T')[0],
     });
+    setModalOpen(true);
+  };
+
+  const handleOpenEdit = (item: any) => {
+    setEditingItem(item);
+    setForm({
+      carteiraId: item.carteiraId?.toString() || carteiras[0]?.id?.toString() || '',
+      categoriaId: item.categoriaId?.toString() || '',
+      valor: item.valor?.toString() || '',
+      descricao: item.descricao || '',
+      formaRecebimento: item.formaRecebimento || 'dinheiro',
+      turno: item.turno || 'Matutino',
+      data: item.data ? item.data.substring(0, 10) : new Date().toISOString().split('T')[0],
+    });
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingItem) {
+      await api.updateEntrada(editingItem.id, form);
+    } else {
+      await api.createEntrada(form);
+    }
+    setModalOpen(false);
+    setEditingItem(null);
     loadData();
   };
 
@@ -73,6 +102,7 @@ export const Entradas: React.FC = () => {
     setSearch('');
     setSelectedCarteira('');
     setSelectedForma('');
+    setSelectedTurno('');
     setDataInicio('');
     setDataFim('');
   };
@@ -85,12 +115,13 @@ export const Entradas: React.FC = () => {
     const matchesSearch = e.descricao?.toLowerCase().includes(search.toLowerCase()) || e.carteiraNome?.toLowerCase().includes(search.toLowerCase());
     const matchesCarteira = !selectedCarteira || e.carteiraId.toString() === selectedCarteira;
     const matchesForma = !selectedForma || (e.formaRecebimento || '').toLowerCase() === selectedForma.toLowerCase();
+    const matchesTurno = !selectedTurno || (e.turno || 'Matutino').toLowerCase() === selectedTurno.toLowerCase();
 
     const itemDate = e.data ? e.data.substring(0, 10) : '';
     const matchesInicio = !dataInicio || itemDate >= dataInicio;
     const matchesFim = !dataFim || itemDate <= dataFim;
 
-    return matchesSearch && matchesCarteira && matchesForma && matchesInicio && matchesFim;
+    return matchesSearch && matchesCarteira && matchesForma && matchesTurno && matchesInicio && matchesFim;
   });
 
   const totalFiltrado = filtered.reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0);
@@ -109,7 +140,7 @@ export const Entradas: React.FC = () => {
             <TrendingUp className="w-5 h-5 text-emerald-400" />
             Lançamentos de Entradas (Receitas)
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">Histórico completo de vendas da cantina, taxas e receitas</p>
+          <p className="text-xs text-slate-400 mt-0.5">Histórico de vendas da cantina com filtro por Turno (Matutino vs Vespertino)</p>
         </div>
 
         <div className="flex items-center gap-4">
@@ -118,7 +149,7 @@ export const Entradas: React.FC = () => {
             <p className="text-xl font-black text-emerald-400">{formatBrl(totalFiltrado)}</p>
           </div>
           <button
-            onClick={() => setModalOpen(true)}
+            onClick={handleOpenCreate}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-lg shadow-emerald-600/20 transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -127,14 +158,14 @@ export const Entradas: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Bar with All 4 Filters: Search, Carteira, Forma Recebimento, Data Inicio & Fim */}
+      {/* Filter Bar with Turno, Dates, Wallet & Forma */}
       <div className="glass-card p-4 rounded-2xl space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 uppercase tracking-wider">
             <Calendar className="w-4 h-4 text-indigo-400" />
-            Filtros por Período, Carteira e Forma de Recebimento
+            Filtros por Período, Turno, Carteira e Forma
           </span>
-          {(search || selectedCarteira || selectedForma || dataInicio || dataFim) && (
+          {(search || selectedCarteira || selectedForma || selectedTurno || dataInicio || dataFim) && (
             <button
               onClick={clearFilters}
               className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 cursor-pointer"
@@ -144,7 +175,7 @@ export const Entradas: React.FC = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           {/* Search */}
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -155,6 +186,20 @@ export const Entradas: React.FC = () => {
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
             />
+          </div>
+
+          {/* Turno Filter */}
+          <div>
+            <select
+              value={selectedTurno}
+              onChange={(e) => setSelectedTurno(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-semibold text-amber-400"
+            >
+              <option value="">Todos os Turnos</option>
+              <option value="matutino">Matutino (Manhã)</option>
+              <option value="vespertino">Vespertino (Tarde)</option>
+              <option value="noturno">Noturno (Noite)</option>
+            </select>
           </div>
 
           {/* Carteira Filter */}
@@ -173,7 +218,7 @@ export const Entradas: React.FC = () => {
             </select>
           </div>
 
-          {/* Forma de Recebimento Filter */}
+          {/* Forma Filter */}
           <div>
             <select
               value={selectedForma}
@@ -188,7 +233,7 @@ export const Entradas: React.FC = () => {
             </select>
           </div>
 
-          {/* Data Inicial */}
+          {/* Dates */}
           <div>
             <input
               type="date"
@@ -199,7 +244,6 @@ export const Entradas: React.FC = () => {
             />
           </div>
 
-          {/* Data Final */}
           <div>
             <input
               type="date"
@@ -220,6 +264,7 @@ export const Entradas: React.FC = () => {
               <tr>
                 <th className="py-3.5 px-4">ID</th>
                 <th className="py-3.5 px-4">Data</th>
+                <th className="py-3.5 px-4">Turno</th>
                 <th className="py-3.5 px-4">Carteira</th>
                 <th className="py-3.5 px-4">Categoria</th>
                 <th className="py-3.5 px-4">Descrição</th>
@@ -234,6 +279,18 @@ export const Entradas: React.FC = () => {
                   <td className="py-3 px-4 font-bold text-slate-400">#{item.id}</td>
                   <td className="py-3 px-4 text-slate-300 font-medium">
                     {new Date(item.data).toLocaleDateString('pt-BR')}
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                      item.turno === 'Vespertino'
+                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        : item.turno === 'Noturno'
+                        ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                        : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    }`}>
+                      {item.turno === 'Vespertino' ? <Sun className="w-3 h-3 text-amber-400" /> : <Clock className="w-3 h-3" />}
+                      {item.turno || 'Matutino'}
+                    </span>
                   </td>
                   <td className="py-3 px-4">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-semibold">
@@ -262,6 +319,13 @@ export const Entradas: React.FC = () => {
                   <td className="py-3 px-4 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <button
+                        onClick={() => handleOpenEdit(item)}
+                        className="p-1.5 rounded-lg text-amber-400 hover:bg-amber-500/10 transition cursor-pointer"
+                        title="Editar lançamento"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => setReciboItem({ ...item, tipo: 'entrada', valor: parseFloat(item.valor), forma: item.formaRecebimento })}
                         className="p-1.5 rounded-lg text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
                         title="Gerar / Imprimir Recibo PDF"
@@ -284,15 +348,15 @@ export const Entradas: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal Nova Entrada */}
+      {/* Modal Nova / Editar Entrada */}
       {modalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="glass-card w-full max-w-md p-6 rounded-2xl space-y-4 border border-slate-700 shadow-2xl">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-emerald-400" />
-              Nova Receita / Entrada
+              {editingItem ? `Editar Receita #${editingItem.id}` : 'Nova Receita / Entrada'}
             </h3>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">Carteira de Destino</label>
                 <select
@@ -309,18 +373,33 @@ export const Entradas: React.FC = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Categoria (Opcional)</label>
-                <select
-                  value={form.categoriaId}
-                  onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
-                >
-                  <option value="">Sem categoria</option>
-                  {categorias.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.nome}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Turno do Lançamento</label>
+                  <select
+                    value={form.turno}
+                    onChange={(e) => setForm({ ...form, turno: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-amber-400 font-bold focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="Matutino">Matutino (Manhã)</option>
+                    <option value="Vespertino">Vespertino (Tarde)</option>
+                    <option value="Noturno">Noturno (Noite)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Categoria (Opcional)</label>
+                  <select
+                    value={form.categoriaId}
+                    onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="">Sem categoria</option>
+                    {categorias.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -386,7 +465,7 @@ export const Entradas: React.FC = () => {
                   type="submit"
                   className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/30"
                 >
-                  Registrar Receita
+                  {editingItem ? 'Salvar Alterações' : 'Registrar Receita'}
                 </button>
               </div>
             </form>

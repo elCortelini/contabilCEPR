@@ -166,8 +166,8 @@ router.post('/mensalidades/:id/pagar', (req, res) => {
     const transaction = db.transaction(() => {
       // Registra a entrada na carteira
       const entradaResult = db.prepare(`
-        INSERT INTO entradas (userId, carteiraId, valor, descricao, formaRecebimento, data, criadaEm, atualizadaEm)
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO entradas (userId, carteiraId, valor, descricao, formaRecebimento, turno, data, criadaEm, atualizadaEm)
+        VALUES (1, ?, ?, ?, ?, 'Matutino', ?, ?, ?)
       `).run(carteiraId, mens.valor, `Mensalidade ${mens.mesReferencia} - Aluno: ${mens.alunoNome}`, formaRecebimento || 'pix', now, now, now);
 
       // Credita na carteira
@@ -303,14 +303,14 @@ router.get('/dashboard', (req, res) => {
 
     // Recent transactions (top 10)
     const entradasRecentes = db.prepare(`
-      SELECT e.id, 'entrada' as tipo, e.data, e.valor, e.descricao, e.formaRecebimento as forma, c.nome as carteiraNome
+      SELECT e.id, 'entrada' as tipo, e.data, e.valor, e.descricao, e.formaRecebimento as forma, e.turno, c.nome as carteiraNome
       FROM entradas e
       JOIN carteiras c ON e.carteiraId = c.id
       ORDER BY e.data DESC LIMIT 10
     `).all();
 
     const saidasRecentes = db.prepare(`
-      SELECT s.id, 'saida' as tipo, s.data, s.valor, s.descricao, s.formaPagamento as forma, c.nome as carteiraNome
+      SELECT s.id, 'saida' as tipo, s.data, s.valor, s.descricao, s.formaPagamento as forma, 'Geral' as turno, c.nome as carteiraNome
       FROM saidas s
       JOIN carteiras c ON s.carteiraId = c.id
       ORDER BY s.data DESC LIMIT 10
@@ -389,10 +389,10 @@ router.put('/carteiras/:id', (req, res) => {
   }
 });
 
-// Entradas CRUD
+// Entradas CRUD & PUT
 router.get('/entradas', (req, res) => {
   try {
-    const { carteiraId, inicio, fim } = req.query;
+    const { carteiraId, inicio, fim, turno } = req.query;
     let query = `
       SELECT e.*, c.nome as carteiraNome, cat.nome as categoriaNome, cat.cor as categoriaCor
       FROM entradas e
@@ -405,6 +405,10 @@ router.get('/entradas', (req, res) => {
     if (carteiraId) {
       query += ` AND e.carteiraId = ?`;
       params.push(carteiraId);
+    }
+    if (turno) {
+      query += ` AND e.turno = ?`;
+      params.push(turno);
     }
     if (inicio) {
       query += ` AND e.data >= ?`;
@@ -425,15 +429,15 @@ router.get('/entradas', (req, res) => {
 
 router.post('/entradas', (req, res) => {
   try {
-    const { carteiraId, categoriaId, valor, descricao, formaRecebimento, data } = req.body;
+    const { carteiraId, categoriaId, valor, descricao, formaRecebimento, turno, data } = req.body;
     const now = new Date().toISOString();
     const val = parseFloat(valor);
 
     const transaction = db.transaction(() => {
       const result = db.prepare(`
-        INSERT INTO entradas (userId, carteiraId, categoriaId, valor, descricao, formaRecebimento, data, criadaEm, atualizadaEm)
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(carteiraId, categoriaId || null, val, descricao || '', formaRecebimento || 'dinheiro', data || now, now, now);
+        INSERT INTO entradas (userId, carteiraId, categoriaId, valor, descricao, formaRecebimento, turno, data, criadaEm, atualizadaEm)
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(carteiraId, categoriaId || null, val, descricao || '', formaRecebimento || 'dinheiro', turno || 'Matutino', data || now, now, now);
 
       db.prepare('UPDATE carteiras SET saldoAtual = saldoAtual + ? WHERE id = ?').run(val, carteiraId);
       return result.lastInsertRowid;
@@ -441,6 +445,38 @@ router.post('/entradas', (req, res) => {
 
     const id = transaction();
     res.json({ id, message: 'Receita registrada com sucesso!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/entradas/:id', (req, res) => {
+  try {
+    const id = req.params.id;
+    const { carteiraId, categoriaId, valor, descricao, formaRecebimento, turno, data } = req.body;
+    const newValor = parseFloat(valor);
+    const now = new Date().toISOString();
+
+    const oldEntrada = db.prepare('SELECT * FROM entradas WHERE id = ?').get(id) as any;
+    if (!oldEntrada) return res.status(404).json({ error: 'Entrada não encontrada' });
+
+    const transaction = db.transaction(() => {
+      // Reverter valor antigo da carteira antiga
+      db.prepare('UPDATE carteiras SET saldoAtual = saldoAtual - ? WHERE id = ?').run(oldEntrada.valor, oldEntrada.carteiraId);
+
+      // Adicionar novo valor na nova carteira
+      db.prepare('UPDATE carteiras SET saldoAtual = saldoAtual + ? WHERE id = ?').run(newValor, carteiraId);
+
+      // Atualizar registro da entrada
+      db.prepare(`
+        UPDATE entradas
+        SET carteiraId = ?, categoriaId = ?, valor = ?, descricao = ?, formaRecebimento = ?, turno = ?, data = ?, atualizadaEm = ?
+        WHERE id = ?
+      `).run(carteiraId, categoriaId || null, newValor, descricao || '', formaRecebimento || 'dinheiro', turno || 'Matutino', data, now, id);
+    });
+
+    transaction();
+    res.json({ message: 'Entrada atualizada com sucesso!' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -463,7 +499,7 @@ router.delete('/entradas/:id', (req, res) => {
   }
 });
 
-// Saidas CRUD
+// Saidas CRUD & PUT
 router.get('/saidas', (req, res) => {
   try {
     const { carteiraId, inicio, fim } = req.query;
@@ -516,6 +552,38 @@ router.post('/saidas', (req, res) => {
 
     const id = transaction();
     res.json({ id, message: 'Despesa registrada com sucesso!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/saidas/:id', (req, res) => {
+  try {
+    const id = req.params.id;
+    const { carteiraId, categoriaId, valor, descricao, formaPagamento, fornecedorId, data } = req.body;
+    const newValor = parseFloat(valor);
+    const now = new Date().toISOString();
+
+    const oldSaida = db.prepare('SELECT * FROM saidas WHERE id = ?').get(id) as any;
+    if (!oldSaida) return res.status(404).json({ error: 'Saída não encontrada' });
+
+    const transaction = db.transaction(() => {
+      // Reverter estorno antigo da carteira antiga
+      db.prepare('UPDATE carteiras SET saldoAtual = saldoAtual + ? WHERE id = ?').run(oldSaida.valor, oldSaida.carteiraId);
+
+      // Debitar novo valor da nova carteira
+      db.prepare('UPDATE carteiras SET saldoAtual = saldoAtual - ? WHERE id = ?').run(newValor, carteiraId);
+
+      // Atualizar registro da saída
+      db.prepare(`
+        UPDATE saidas
+        SET carteiraId = ?, categoriaId = ?, valor = ?, descricao = ?, formaPagamento = ?, fornecedorId = ?, data = ?, atualizadaEm = ?
+        WHERE id = ?
+      `).run(carteiraId, categoriaId || null, newValor, descricao || '', formaPagamento || 'dinheiro', fornecedorId || null, data, now, id);
+    });
+
+    transaction();
+    res.json({ message: 'Saída atualizada com sucesso!' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -634,26 +702,70 @@ router.post('/produtos', (req, res) => {
   }
 });
 
+// Relatório Comparativo por Turnos (Matutino vs Vespertino)
+router.get('/relatorios/comparativo-turnos', (req, res) => {
+  try {
+    const { inicio, fim } = req.query;
+    let query = `
+      SELECT COALESCE(e.turno, 'Matutino') as turno, SUM(e.valor) as total, COUNT(e.id) as qtd
+      FROM entradas e
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    if (inicio) {
+      query += ` AND e.data >= ?`;
+      params.push(inicio);
+    }
+    if (fim) {
+      query += ` AND e.data <= ?`;
+      params.push(fim);
+    }
+
+    query += ` GROUP BY COALESCE(e.turno, 'Matutino')`;
+    const rows = db.prepare(query).all(...params) as any[];
+
+    const result = {
+      matutino: { total: 0, qtd: 0 },
+      vespertino: { total: 0, qtd: 0 },
+      noturno: { total: 0, qtd: 0 },
+      geral: { total: 0, qtd: 0 }
+    };
+
+    for (const r of rows) {
+      const tKey = (r.turno || 'matutino').toLowerCase() as keyof typeof result;
+      if (result[tKey]) {
+        result[tKey].total = r.total || 0;
+        result[tKey].qtd = r.qtd || 0;
+      }
+    }
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Export CSV report
 router.get('/relatorios/export-csv', (req, res) => {
   try {
     const entradas = db.prepare(`
-      SELECT 'Entrada' as tipo, e.id, e.data, c.nome as carteira, e.valor, e.formaRecebimento as forma, e.descricao
+      SELECT 'Entrada' as tipo, e.id, e.data, c.nome as carteira, e.valor, e.formaRecebimento as forma, COALESCE(e.turno, 'Matutino') as turno, e.descricao
       FROM entradas e JOIN carteiras c ON e.carteiraId = c.id
     `).all();
 
     const saidas = db.prepare(`
-      SELECT 'Saida' as tipo, s.id, s.data, c.nome as carteira, s.valor, s.formaPagamento as forma, s.descricao
+      SELECT 'Saida' as tipo, s.id, s.data, c.nome as carteira, s.valor, s.formaPagamento as forma, 'Geral' as turno, s.descricao
       FROM saidas s JOIN carteiras c ON s.carteiraId = c.id
     `).all();
 
     const all = [...entradas, ...saidas].sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
-    let csv = 'Tipo;ID;Data;Carteira;Valor (R$);Forma;Descrição\n';
+    let csv = 'Tipo;ID;Data;Carteira;Turno;Valor (R$);Forma;Descrição\n';
     for (const row of all as any[]) {
       const dataFmt = row.data ? new Date(row.data).toLocaleDateString('pt-BR') : '';
       const descClean = (row.descricao || '').replace(/;/g, ',').replace(/\n/g, ' ');
-      csv += `${row.tipo};${row.id};${dataFmt};${row.carteira};${row.valor.toFixed(2)};${row.forma};"${descClean}"\n`;
+      csv += `${row.tipo};${row.id};${dataFmt};${row.carteira};${row.turno};${row.valor.toFixed(2)};${row.forma};"${descClean}"\n`;
     }
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');

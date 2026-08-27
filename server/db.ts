@@ -43,6 +43,7 @@ export function initDb() {
       valor REAL NOT NULL,
       descricao TEXT,
       formaRecebimento TEXT DEFAULT 'dinheiro',
+      turno TEXT DEFAULT 'Matutino',
       fornecedorId INTEGER,
       produtoId INTEGER,
       comprovante TEXT,
@@ -126,6 +127,18 @@ export function initDb() {
       FOREIGN KEY (alunoId) REFERENCES alunos (id)
     );
   `);
+
+  // Safely add turno column if missing in existing database
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(entradas)").all() as any[];
+    const hasTurno = tableInfo.some(c => c.name === 'turno');
+    if (!hasTurno) {
+      db.exec("ALTER TABLE entradas ADD COLUMN turno TEXT DEFAULT 'Matutino'");
+      console.log("✅ Coluna 'turno' adicionada à tabela entradas.");
+    }
+  } catch (e) {
+    console.error("Erro ao verificar coluna turno:", e);
+  }
 }
 
 export default db;

@@ -19,11 +19,18 @@ function setStorage(key: string, val: any) {
   }
 }
 
-// Seed initial static storage
+// Seed initial static storage with turno defaults
 if (IS_STATIC && typeof window !== 'undefined' && !localStorage.getItem('cepr_users')) {
   setStorage('users', initialData.tabelas.users.map((u: any) => ({ ...u, status: 'approved' })));
   setStorage('carteiras', initialData.tabelas.carteiras);
-  setStorage('entradas', initialData.tabelas.entradas);
+  
+  // Seed entradas with turno (alternating Matutino / Vespertino for demo richness)
+  const seededEntradas = (initialData.tabelas.entradas || []).map((e: any, idx: number) => ({
+    ...e,
+    turno: e.turno || (idx % 2 === 0 ? 'Matutino' : 'Vespertino')
+  }));
+  setStorage('entradas', seededEntradas);
+  
   setStorage('saidas', initialData.tabelas.saidas);
   setStorage('fornecedores', []);
   setStorage('produtos', []);
@@ -96,8 +103,8 @@ export const api = {
     const fluxoCaixa = Array.from(mesesMap.values()).sort((a, b) => a.mes.localeCompare(b.mes));
 
     const carteirasMap = new Map(carteiras.map((c: any) => [c.id, c.nome]));
-    const eRecentes = entradas.map((e: any) => ({ ...e, tipo: 'entrada', forma: e.formaRecebimento, carteiraNome: carteirasMap.get(e.carteiraId) || 'Carteira' }));
-    const sRecentes = saidas.map((s: any) => ({ ...s, tipo: 'saida', forma: s.formaPagamento, carteiraNome: carteirasMap.get(s.carteiraId) || 'Carteira' }));
+    const eRecentes = entradas.map((e: any) => ({ ...e, tipo: 'entrada', forma: e.formaRecebimento, turno: e.turno || 'Matutino', carteiraNome: carteirasMap.get(e.carteiraId) || 'Carteira' }));
+    const sRecentes = saidas.map((s: any) => ({ ...s, tipo: 'saida', forma: s.formaPagamento, turno: 'Geral', carteiraNome: carteirasMap.get(s.carteiraId) || 'Carteira' }));
     const ultimasMovimentacoes = [...eRecentes, ...sRecentes]
       .sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime())
       .slice(0, 10);
@@ -115,6 +122,46 @@ export const api = {
       ultimasMovimentacoes,
       alertas: { produtosEstoqueBaixo, fornecedoresPendentes }
     };
+  },
+
+  async getComparativoTurnos(inicio?: string, fim?: string) {
+    if (!IS_STATIC) {
+      let url = '/api/relatorios/comparativo-turnos';
+      const params = new URLSearchParams();
+      if (inicio) params.append('inicio', inicio);
+      if (fim) params.append('fim', fim);
+      if (params.toString()) url += `?${params.toString()}`;
+      const res = await fetch(url);
+      if (res.ok) return res.json();
+    }
+    const entradas = getStorage('entradas', []);
+    const filtered = entradas.filter((e: any) => {
+      const itemDate = e.data ? e.data.substring(0, 10) : '';
+      const matchesInicio = !inicio || itemDate >= inicio;
+      const matchesFim = !fim || itemDate <= fim;
+      return matchesInicio && matchesFim;
+    });
+
+    const result = {
+      matutino: { total: 0, qtd: 0 },
+      vespertino: { total: 0, qtd: 0 },
+      noturno: { total: 0, qtd: 0 },
+    };
+
+    for (const e of filtered) {
+      const t = (e.turno || 'Matutino').toLowerCase();
+      if (t.includes('vespert')) {
+        result.vespertino.total += parseFloat(e.valor) || 0;
+        result.vespertino.qtd += 1;
+      } else if (t.includes('noturn')) {
+        result.noturno.total += parseFloat(e.valor) || 0;
+        result.noturno.qtd += 1;
+      } else {
+        result.matutino.total += parseFloat(e.valor) || 0;
+        result.matutino.qtd += 1;
+      }
+    }
+    return result;
   },
 
   async getCategorias() {
@@ -252,6 +299,7 @@ export const api = {
       valor: mens.valor,
       descricao: `Mensalidade ${mens.mesReferencia} - Aluno: ${mens.alunoNome}`,
       formaRecebimento: formaRecebimento || 'pix',
+      turno: 'Matutino',
       data: new Date().toISOString().split('T')[0]
     });
   },
@@ -353,7 +401,13 @@ export const api = {
     const entradas = getStorage('entradas', []);
     return entradas.map((e: any) => {
       const cat = categoriasMap.get(e.categoriaId);
-      return { ...e, carteiraNome: carteirasMap.get(e.carteiraId) || 'Carteira', categoriaNome: cat?.nome, categoriaCor: cat?.cor };
+      return {
+        ...e,
+        turno: e.turno || 'Matutino',
+        carteiraNome: carteirasMap.get(e.carteiraId) || 'Carteira',
+        categoriaNome: cat?.nome,
+        categoriaCor: cat?.cor
+      };
     });
   },
 
@@ -372,10 +426,32 @@ export const api = {
       id: Date.now(),
       valor: parseFloat(data.valor),
       carteiraId: parseInt(data.carteiraId),
-      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null
+      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null,
+      turno: data.turno || 'Matutino'
     };
     entradas.unshift(newEntrada);
     setStorage('entradas', entradas);
+  },
+
+  async updateEntrada(id: number, data: any) {
+    if (!IS_STATIC) {
+      const res = await fetch(`/api/entradas/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    }
+    const entradas = getStorage('entradas', []);
+    const updated = entradas.map((e: any) => (e.id === id ? {
+      ...e,
+      ...data,
+      valor: parseFloat(data.valor),
+      carteiraId: parseInt(data.carteiraId),
+      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null,
+      turno: data.turno || 'Matutino'
+    } : e));
+    setStorage('entradas', updated);
   },
 
   async deleteEntrada(id: number) {
@@ -420,6 +496,26 @@ export const api = {
     };
     saidas.unshift(newSaida);
     setStorage('saidas', saidas);
+  },
+
+  async updateSaida(id: number, data: any) {
+    if (!IS_STATIC) {
+      const res = await fetch(`/api/saidas/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    }
+    const saidas = getStorage('saidas', []);
+    const updated = saidas.map((s: any) => (s.id === id ? {
+      ...s,
+      ...data,
+      valor: parseFloat(data.valor),
+      carteiraId: parseInt(data.carteiraId),
+      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null
+    } : s));
+    setStorage('saidas', updated);
   },
 
   async deleteSaida(id: number) {
