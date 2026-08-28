@@ -10,6 +10,16 @@ export interface FirebaseConfigKeys {
   appId: string;
 }
 
+// Credentials extracted from user's Firebase project: cepr-contabil
+const DEFAULT_FIREBASE_CONFIG: FirebaseConfigKeys = {
+  apiKey: "AIzaSyAqb9Dg06UJALLvSsStPLssS8t6-uQYWgo",
+  authDomain: "cepr-contabil.firebaseapp.com",
+  projectId: "cepr-contabil",
+  storageBucket: "cepr-contabil.firebasestorage.app",
+  messagingSenderId: "900310273756",
+  appId: "1:900310273756:web:b83fd18b29c9991097ee19"
+};
+
 export function getStoredFirebaseConfig(): FirebaseConfigKeys | null {
   try {
     const saved = localStorage.getItem('cepr_firebase_config');
@@ -31,7 +41,8 @@ export function getStoredFirebaseConfig(): FirebaseConfigKeys | null {
     };
   }
 
-  return null;
+  // Fallback to user's registered cepr-contabil project credentials
+  return DEFAULT_FIREBASE_CONFIG;
 }
 
 let dbInstance: ReturnType<typeof getFirestore> | null = null;
