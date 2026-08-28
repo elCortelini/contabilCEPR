@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 
 export interface FirebaseConfigKeys {
   apiKey: string;
@@ -41,11 +42,12 @@ export function getStoredFirebaseConfig(): FirebaseConfigKeys | null {
     };
   }
 
-  // Fallback to user's registered cepr-contabil project credentials
   return DEFAULT_FIREBASE_CONFIG;
 }
 
+let appInstance: any = null;
 let dbInstance: ReturnType<typeof getFirestore> | null = null;
+let authInstance: ReturnType<typeof getAuth> | null = null;
 
 export function initFirebase() {
   const config = getStoredFirebaseConfig();
@@ -54,8 +56,9 @@ export function initFirebase() {
   }
 
   try {
-    const app = getApps().length === 0 ? initializeApp(config) : getApp();
-    dbInstance = getFirestore(app);
+    appInstance = getApps().length === 0 ? initializeApp(config) : getApp();
+    dbInstance = getFirestore(appInstance);
+    authInstance = getAuth(appInstance);
     return dbInstance;
   } catch (e) {
     console.error('Erro ao inicializar Firebase:', e);
@@ -65,7 +68,17 @@ export function initFirebase() {
 
 export function getFirebaseDb() {
   if (!dbInstance) {
-    return initFirebase();
+    initFirebase();
   }
   return dbInstance;
 }
+
+export function getFirebaseAuth() {
+  if (!authInstance) {
+    initFirebase();
+  }
+  return authInstance;
+}
+
+export const googleProvider = new GoogleAuthProvider();
+export { signInWithPopup, signOut, onAuthStateChanged };
