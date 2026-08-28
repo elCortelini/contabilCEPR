@@ -1,4 +1,5 @@
 import initialData from '../../dados_financeiros_completos.json';
+import { firebaseApi } from './firebaseApi';
 
 const IS_STATIC = typeof window !== 'undefined' && !window.location.host.includes('localhost:3000') && !window.location.host.includes('localhost:5000');
 
@@ -19,18 +20,16 @@ function setStorage(key: string, val: any) {
   }
 }
 
-// Seed initial static storage with turno defaults
+// Seed initial static storage if static and not seeded
 if (IS_STATIC && typeof window !== 'undefined' && !localStorage.getItem('cepr_users')) {
   setStorage('users', initialData.tabelas.users.map((u: any) => ({ ...u, status: 'approved' })));
   setStorage('carteiras', initialData.tabelas.carteiras);
-  
-  // Seed entradas with turno (alternating Matutino / Vespertino for demo richness)
+
   const seededEntradas = (initialData.tabelas.entradas || []).map((e: any, idx: number) => ({
     ...e,
     turno: e.turno || (idx % 2 === 0 ? 'Matutino' : 'Vespertino')
   }));
   setStorage('entradas', seededEntradas);
-  
   setStorage('saidas', initialData.tabelas.saidas);
   setStorage('fornecedores', []);
   setStorage('produtos', []);
@@ -58,8 +57,74 @@ if (IS_STATIC && typeof window !== 'undefined' && !localStorage.getItem('cepr_us
   ]);
 }
 
+// Attempt Firebase seed if configured
+if (firebaseApi.isConfigured()) {
+  firebaseApi.seedIfEmpty();
+}
+
 export const api = {
   async getDashboard() {
+    if (firebaseApi.isConfigured()) {
+      const carteiras = (await firebaseApi.getCollection('carteiras')) as any[];
+      const entradas = (await firebaseApi.getCollection('entradas')) as any[];
+      const saidas = (await firebaseApi.getCollection('saidas')) as any[];
+      const fornecedores = (await firebaseApi.getCollection('fornecedores')) as any[];
+      const produtos = (await firebaseApi.getCollection('produtos')) as any[];
+
+      const distribuicaoCarteiras = carteiras.map((c: any) => {
+        const sumEnt = entradas.filter((e: any) => Number(e.carteiraId) === Number(c.id)).reduce((acc: number, e: any) => acc + (parseFloat(e.valor) || 0), 0);
+        const sumSai = saidas.filter((s: any) => Number(s.carteiraId) === Number(c.id)).reduce((acc: number, s: any) => acc + (parseFloat(s.valor) || 0), 0);
+        return { id: c.id, nome: c.nome, saldo: sumEnt - sumSai, tipo: c.tipo };
+      });
+
+      const saldoTotal = distribuicaoCarteiras.reduce((acc: number, c: any) => acc + c.saldo, 0);
+      const totalEntradas = entradas.reduce((acc: number, e: any) => acc + (parseFloat(e.valor) || 0), 0);
+      const totalSaidas = saidas.reduce((acc: number, s: any) => acc + (parseFloat(s.valor) || 0), 0);
+      const pendenteFornecedores = fornecedores.reduce((acc: number, f: any) => acc + (parseFloat(f.saldoPendente) || 0), 0);
+
+      const mesesMap = new Map<string, { mes: string; entradas: number; saidas: number; liquido: number }>();
+      entradas.forEach((e: any) => {
+        const mes = e.data ? e.data.substring(0, 7) : '';
+        if (!mes) return;
+        const curr = mesesMap.get(mes) || { mes, entradas: 0, saidas: 0, liquido: 0 };
+        curr.entradas += parseFloat(e.valor) || 0;
+        curr.liquido = curr.entradas - curr.saidas;
+        mesesMap.set(mes, curr);
+      });
+
+      saidas.forEach((s: any) => {
+        const mes = s.data ? s.data.substring(0, 7) : '';
+        if (!mes) return;
+        const curr = mesesMap.get(mes) || { mes, entradas: 0, saidas: 0, liquido: 0 };
+        curr.saidas += parseFloat(s.valor) || 0;
+        curr.liquido = curr.entradas - curr.saidas;
+        mesesMap.set(mes, curr);
+      });
+
+      const fluxoCaixa = Array.from(mesesMap.values()).sort((a, b) => a.mes.localeCompare(b.mes));
+
+      const carteirasMap = new Map(carteiras.map((c: any) => [Number(c.id), c.nome]));
+      const eRecentes = entradas.map((e: any) => ({ ...e, tipo: 'entrada', forma: e.formaRecebimento, turno: e.turno || 'Matutino', carteiraNome: carteirasMap.get(Number(e.carteiraId)) || 'Carteira' }));
+      const sRecentes = saidas.map((s: any) => ({ ...s, tipo: 'saida', forma: s.formaPagamento, turno: 'Geral', carteiraNome: carteirasMap.get(Number(s.carteiraId)) || 'Carteira' }));
+      const ultimasMovimentacoes = [...eRecentes, ...sRecentes]
+        .sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime())
+        .slice(0, 10);
+
+      const produtosEstoqueBaixo = produtos.filter((p: any) => parseInt(p.quantidade || 0) <= 5);
+      const fornecedoresPendentes = fornecedores.filter((f: any) => parseFloat(f.saldoPendente || 0) > 0);
+
+      return {
+        saldoTotal,
+        totalEntradas,
+        totalSaidas,
+        pendenteFornecedores,
+        fluxoCaixa,
+        distribuicaoCarteiras,
+        ultimasMovimentacoes,
+        alertas: { produtosEstoqueBaixo, fornecedoresPendentes }
+      };
+    }
+
     if (!IS_STATIC) {
       const res = await fetch('/api/dashboard');
       if (res.ok) return res.json();
@@ -125,6 +190,37 @@ export const api = {
   },
 
   async getComparativoTurnos(inicio?: string, fim?: string) {
+    if (firebaseApi.isConfigured()) {
+      const entradas = (await firebaseApi.getCollection('entradas')) as any[];
+      const filtered = entradas.filter((e: any) => {
+        const itemDate = e.data ? e.data.substring(0, 10) : '';
+        const matchesInicio = !inicio || itemDate >= inicio;
+        const matchesFim = !fim || itemDate <= fim;
+        return matchesInicio && matchesFim;
+      });
+
+      const result = {
+        matutino: { total: 0, qtd: 0 },
+        vespertino: { total: 0, qtd: 0 },
+        noturno: { total: 0, qtd: 0 },
+      };
+
+      for (const e of filtered) {
+        const t = (e.turno || 'Matutino').toLowerCase();
+        if (t.includes('vespert')) {
+          result.vespertino.total += parseFloat(e.valor) || 0;
+          result.vespertino.qtd += 1;
+        } else if (t.includes('noturn')) {
+          result.noturno.total += parseFloat(e.valor) || 0;
+          result.noturno.qtd += 1;
+        } else {
+          result.matutino.total += parseFloat(e.valor) || 0;
+          result.matutino.qtd += 1;
+        }
+      }
+      return result;
+    }
+
     if (!IS_STATIC) {
       let url = '/api/relatorios/comparativo-turnos';
       const params = new URLSearchParams();
@@ -165,6 +261,9 @@ export const api = {
   },
 
   async getCategorias() {
+    if (firebaseApi.isConfigured()) {
+      return await firebaseApi.getCollection('categorias');
+    }
     if (!IS_STATIC) {
       const res = await fetch('/api/categorias');
       if (res.ok) return res.json();
@@ -173,6 +272,11 @@ export const api = {
   },
 
   async createCategoria(data: any) {
+    const newC = { ...data, id: Date.now() };
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.setDocument('categorias', newC.id, newC);
+      return newC;
+    }
     if (!IS_STATIC) {
       const res = await fetch('/api/categorias', {
         method: 'POST',
@@ -182,12 +286,15 @@ export const api = {
       return res.json();
     }
     const cats = getStorage('categorias', []);
-    const newC = { ...data, id: Date.now() };
     cats.push(newC);
     setStorage('categorias', cats);
   },
 
   async deleteCategoria(id: number) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.deleteDocument('categorias', id);
+      return;
+    }
     if (!IS_STATIC) {
       await fetch(`/api/categorias/${id}`, { method: 'DELETE' });
       return;
@@ -197,6 +304,9 @@ export const api = {
   },
 
   async getTurmas() {
+    if (firebaseApi.isConfigured()) {
+      return await firebaseApi.getCollection('turmas');
+    }
     if (!IS_STATIC) {
       const res = await fetch('/api/turmas');
       if (res.ok) return res.json();
@@ -205,6 +315,11 @@ export const api = {
   },
 
   async createTurma(data: any) {
+    const newT = { ...data, id: Date.now() };
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.setDocument('turmas', newT.id, newT);
+      return newT;
+    }
     if (!IS_STATIC) {
       const res = await fetch('/api/turmas', {
         method: 'POST',
@@ -214,12 +329,14 @@ export const api = {
       return res.json();
     }
     const turmas = getStorage('turmas', []);
-    const newT = { ...data, id: Date.now() };
     turmas.push(newT);
     setStorage('turmas', turmas);
   },
 
   async getAlunos() {
+    if (firebaseApi.isConfigured()) {
+      return await firebaseApi.getCollection('alunos');
+    }
     if (!IS_STATIC) {
       const res = await fetch('/api/alunos');
       if (res.ok) return res.json();
@@ -228,6 +345,14 @@ export const api = {
   },
 
   async createAluno(data: any) {
+    const turmas = (await this.getTurmas()) as any[];
+    const turmasMap = new Map(turmas.map((t: any) => [Number(t.id), t.nome]));
+    const newA = { ...data, id: Date.now(), turmaId: parseInt(data.turmaId), turmaNome: turmasMap.get(parseInt(data.turmaId)) || 'Sem Turma', status: 'ativo' };
+
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.setDocument('alunos', newA.id, newA);
+      return newA;
+    }
     if (!IS_STATIC) {
       const res = await fetch('/api/alunos', {
         method: 'POST',
@@ -236,14 +361,15 @@ export const api = {
       });
       return res.json();
     }
-    const turmasMap = new Map((getStorage('turmas', []) as any[]).map((t: any) => [t.id, t.nome]));
     const alunos = getStorage('alunos', []);
-    const newA = { ...data, id: Date.now(), turmaId: parseInt(data.turmaId), turmaNome: turmasMap.get(parseInt(data.turmaId)) || 'Sem Turma', status: 'ativo' };
     alunos.push(newA);
     setStorage('alunos', alunos);
   },
 
   async getMensalidades() {
+    if (firebaseApi.isConfigured()) {
+      return await firebaseApi.getCollection('mensalidades');
+    }
     if (!IS_STATIC) {
       const res = await fetch('/api/mensalidades');
       if (res.ok) return res.json();
@@ -252,17 +378,8 @@ export const api = {
   },
 
   async createMensalidade(data: any) {
-    if (!IS_STATIC) {
-      const res = await fetch('/api/mensalidades', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
-    }
-    const alunos = getStorage('alunos', []);
-    const aluno = alunos.find((a: any) => a.id === parseInt(data.alunoId));
-    const mensalidades = getStorage('mensalidades', []);
+    const alunos = (await this.getAlunos()) as any[];
+    const aluno = alunos.find((a: any) => Number(a.id) === parseInt(data.alunoId));
     const newM = {
       ...data,
       id: Date.now(),
@@ -273,11 +390,44 @@ export const api = {
       valor: parseFloat(data.valor),
       status: 'pendente'
     };
+
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.setDocument('mensalidades', newM.id, newM);
+      return newM;
+    }
+    if (!IS_STATIC) {
+      const res = await fetch('/api/mensalidades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    }
+    const mensalidades = getStorage('mensalidades', []);
     mensalidades.unshift(newM);
     setStorage('mensalidades', mensalidades);
   },
 
   async payMensalidade(id: number, carteiraId: number, formaRecebimento: string) {
+    const mensalidades = (await this.getMensalidades()) as any[];
+    const mens = mensalidades.find((m: any) => Number(m.id) === id);
+    if (!mens) return;
+
+    mens.status = 'pago';
+
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.updateDocument('mensalidades', id, { status: 'pago' });
+      await this.createEntrada({
+        carteiraId,
+        valor: mens.valor,
+        descricao: `Mensalidade ${mens.mesReferencia} - Aluno: ${mens.alunoNome}`,
+        formaRecebimento: formaRecebimento || 'pix',
+        turno: 'Matutino',
+        data: new Date().toISOString().split('T')[0]
+      });
+      return;
+    }
+
     if (!IS_STATIC) {
       await fetch(`/api/mensalidades/${id}/pagar`, {
         method: 'POST',
@@ -286,14 +436,8 @@ export const api = {
       });
       return;
     }
-    const mensalidades = getStorage('mensalidades', []);
-    const mens = mensalidades.find((m: any) => m.id === id);
-    if (!mens) return;
 
-    mens.status = 'pago';
     setStorage('mensalidades', mensalidades);
-
-    // Create revenue entry
     await this.createEntrada({
       carteiraId,
       valor: mens.valor,
@@ -305,6 +449,9 @@ export const api = {
   },
 
   async getUsers() {
+    if (firebaseApi.isConfigured()) {
+      return await firebaseApi.getCollection('users');
+    }
     if (!IS_STATIC) {
       const res = await fetch('/api/users');
       if (res.ok) return res.json();
@@ -313,6 +460,10 @@ export const api = {
   },
 
   async approveUser(id: number) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.updateDocument('users', id, { status: 'approved' });
+      return;
+    }
     if (!IS_STATIC) {
       await fetch(`/api/users/${id}/approve`, { method: 'PUT' });
       return;
@@ -323,6 +474,10 @@ export const api = {
   },
 
   async blockUser(id: number) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.updateDocument('users', id, { status: 'blocked' });
+      return;
+    }
     if (!IS_STATIC) {
       await fetch(`/api/users/${id}/block`, { method: 'PUT' });
       return;
@@ -333,6 +488,10 @@ export const api = {
   },
 
   async updateUserRole(id: number, role: string) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.updateDocument('users', id, { role });
+      return;
+    }
     if (!IS_STATIC) {
       await fetch(`/api/users/${id}/role`, {
         method: 'PUT',
@@ -347,6 +506,26 @@ export const api = {
   },
 
   async login(email: string, name?: string) {
+    if (firebaseApi.isConfigured()) {
+      const users = (await firebaseApi.getCollection('users')) as any[];
+      let user = users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+
+      if (!user) {
+        user = {
+          id: Date.now(),
+          openId: Math.random().toString(36).substring(2, 10),
+          name: name || email.split('@')[0],
+          email,
+          loginMethod: 'google',
+          role: 'user',
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        };
+        await firebaseApi.setDocument('users', user.id, user);
+      }
+      return user;
+    }
+
     if (!IS_STATIC) {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -355,6 +534,7 @@ export const api = {
       });
       if (res.ok) return res.json();
     }
+
     const users = getStorage('users', initialData.tabelas.users.map((u: any) => ({ ...u, status: 'approved' })));
     let user = users.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
 
@@ -376,10 +556,23 @@ export const api = {
   },
 
   async getCarteiras() {
+    if (firebaseApi.isConfigured()) {
+      const carteiras = (await firebaseApi.getCollection('carteiras')) as any[];
+      const entradas = (await firebaseApi.getCollection('entradas')) as any[];
+      const saidas = (await firebaseApi.getCollection('saidas')) as any[];
+
+      return carteiras.map((c: any) => {
+        const totalEntradas = entradas.filter((e: any) => Number(e.carteiraId) === Number(c.id)).reduce((acc: number, e: any) => acc + (parseFloat(e.valor) || 0), 0);
+        const totalSaidas = saidas.filter((s: any) => Number(s.carteiraId) === Number(c.id)).reduce((acc: number, s: any) => acc + (parseFloat(s.valor) || 0), 0);
+        return { ...c, totalEntradas, totalSaidas, saldoAtual: totalEntradas - totalSaidas };
+      });
+    }
+
     if (!IS_STATIC) {
       const res = await fetch('/api/carteiras');
       if (res.ok) return res.json();
     }
+
     const carteiras = getStorage('carteiras', initialData.tabelas.carteiras);
     const entradas = getStorage('entradas', []);
     const saidas = getStorage('saidas', []);
@@ -392,6 +585,26 @@ export const api = {
   },
 
   async getEntradas() {
+    if (firebaseApi.isConfigured()) {
+      const carteiras = (await firebaseApi.getCollection('carteiras')) as any[];
+      const categorias = (await firebaseApi.getCollection('categorias')) as any[];
+      const entradas = (await firebaseApi.getCollection('entradas')) as any[];
+
+      const carteirasMap = new Map(carteiras.map((c: any) => [Number(c.id), c.nome]));
+      const categoriasMap = new Map(categorias.map((cat: any) => [Number(cat.id), cat]));
+
+      return entradas.map((e: any) => {
+        const cat = categoriasMap.get(Number(e.categoriaId));
+        return {
+          ...e,
+          turno: e.turno || 'Matutino',
+          carteiraNome: carteirasMap.get(Number(e.carteiraId)) || 'Carteira',
+          categoriaNome: cat?.nome,
+          categoriaCor: cat?.cor
+        };
+      });
+    }
+
     if (!IS_STATIC) {
       const res = await fetch('/api/entradas');
       if (res.ok) return res.json();
@@ -412,6 +625,20 @@ export const api = {
   },
 
   async createEntrada(data: any) {
+    const newEntrada = {
+      ...data,
+      id: Date.now(),
+      valor: parseFloat(data.valor),
+      carteiraId: parseInt(data.carteiraId),
+      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null,
+      turno: data.turno || 'Matutino'
+    };
+
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.setDocument('entradas', newEntrada.id, newEntrada);
+      return newEntrada;
+    }
+
     if (!IS_STATIC) {
       const res = await fetch('/api/entradas', {
         method: 'POST',
@@ -421,19 +648,24 @@ export const api = {
       return res.json();
     }
     const entradas = getStorage('entradas', []);
-    const newEntrada = {
-      ...data,
-      id: Date.now(),
-      valor: parseFloat(data.valor),
-      carteiraId: parseInt(data.carteiraId),
-      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null,
-      turno: data.turno || 'Matutino'
-    };
     entradas.unshift(newEntrada);
     setStorage('entradas', entradas);
   },
 
   async updateEntrada(id: number, data: any) {
+    const updated = {
+      ...data,
+      valor: parseFloat(data.valor),
+      carteiraId: parseInt(data.carteiraId),
+      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null,
+      turno: data.turno || 'Matutino'
+    };
+
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.updateDocument('entradas', id, updated);
+      return;
+    }
+
     if (!IS_STATIC) {
       const res = await fetch(`/api/entradas/${id}`, {
         method: 'PUT',
@@ -443,18 +675,15 @@ export const api = {
       return res.json();
     }
     const entradas = getStorage('entradas', []);
-    const updated = entradas.map((e: any) => (e.id === id ? {
-      ...e,
-      ...data,
-      valor: parseFloat(data.valor),
-      carteiraId: parseInt(data.carteiraId),
-      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null,
-      turno: data.turno || 'Matutino'
-    } : e));
-    setStorage('entradas', updated);
+    const list = entradas.map((e: any) => (e.id === id ? { ...e, ...updated } : e));
+    setStorage('entradas', list);
   },
 
   async deleteEntrada(id: number) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.deleteDocument('entradas', id);
+      return;
+    }
     if (!IS_STATIC) {
       await fetch(`/api/entradas/${id}`, { method: 'DELETE' });
       return;
@@ -464,6 +693,20 @@ export const api = {
   },
 
   async getSaidas() {
+    if (firebaseApi.isConfigured()) {
+      const carteiras = (await firebaseApi.getCollection('carteiras')) as any[];
+      const categorias = (await firebaseApi.getCollection('categorias')) as any[];
+      const saidas = (await firebaseApi.getCollection('saidas')) as any[];
+
+      const carteirasMap = new Map(carteiras.map((c: any) => [Number(c.id), c.nome]));
+      const categoriasMap = new Map(categorias.map((cat: any) => [Number(cat.id), cat]));
+
+      return saidas.map((s: any) => {
+        const cat = categoriasMap.get(Number(s.categoriaId));
+        return { ...s, carteiraNome: carteirasMap.get(Number(s.carteiraId)) || 'Carteira', categoriaNome: cat?.nome, categoriaCor: cat?.cor };
+      });
+    }
+
     if (!IS_STATIC) {
       const res = await fetch('/api/saidas');
       if (res.ok) return res.json();
@@ -478,6 +721,19 @@ export const api = {
   },
 
   async createSaida(data: any) {
+    const newSaida = {
+      ...data,
+      id: Date.now(),
+      valor: parseFloat(data.valor),
+      carteiraId: parseInt(data.carteiraId),
+      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null
+    };
+
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.setDocument('saidas', newSaida.id, newSaida);
+      return newSaida;
+    }
+
     if (!IS_STATIC) {
       const res = await fetch('/api/saidas', {
         method: 'POST',
@@ -487,18 +743,23 @@ export const api = {
       return res.json();
     }
     const saidas = getStorage('saidas', []);
-    const newSaida = {
-      ...data,
-      id: Date.now(),
-      valor: parseFloat(data.valor),
-      carteiraId: parseInt(data.carteiraId),
-      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null
-    };
     saidas.unshift(newSaida);
     setStorage('saidas', saidas);
   },
 
   async updateSaida(id: number, data: any) {
+    const updated = {
+      ...data,
+      valor: parseFloat(data.valor),
+      carteiraId: parseInt(data.carteiraId),
+      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null
+    };
+
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.updateDocument('saidas', id, updated);
+      return;
+    }
+
     if (!IS_STATIC) {
       const res = await fetch(`/api/saidas/${id}`, {
         method: 'PUT',
@@ -508,17 +769,15 @@ export const api = {
       return res.json();
     }
     const saidas = getStorage('saidas', []);
-    const updated = saidas.map((s: any) => (s.id === id ? {
-      ...s,
-      ...data,
-      valor: parseFloat(data.valor),
-      carteiraId: parseInt(data.carteiraId),
-      categoriaId: data.categoriaId ? parseInt(data.categoriaId) : null
-    } : s));
-    setStorage('saidas', updated);
+    const list = saidas.map((s: any) => (s.id === id ? { ...s, ...updated } : s));
+    setStorage('saidas', list);
   },
 
   async deleteSaida(id: number) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.deleteDocument('saidas', id);
+      return;
+    }
     if (!IS_STATIC) {
       await fetch(`/api/saidas/${id}`, { method: 'DELETE' });
       return;
@@ -528,6 +787,9 @@ export const api = {
   },
 
   async getFornecedores() {
+    if (firebaseApi.isConfigured()) {
+      return await firebaseApi.getCollection('fornecedores');
+    }
     if (!IS_STATIC) {
       const res = await fetch('/api/fornecedores');
       if (res.ok) return res.json();
@@ -536,6 +798,13 @@ export const api = {
   },
 
   async createFornecedor(data: any) {
+    const newF = { ...data, id: Date.now(), saldoPendente: parseFloat(data.saldoPendente || 0) };
+
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.setDocument('fornecedores', newF.id, newF);
+      return newF;
+    }
+
     if (!IS_STATIC) {
       const res = await fetch('/api/fornecedores', {
         method: 'POST',
@@ -545,12 +814,24 @@ export const api = {
       return res.json();
     }
     const fornecedores = getStorage('fornecedores', []);
-    const newF = { ...data, id: Date.now(), saldoPendente: parseFloat(data.saldoPendente || 0) };
     fornecedores.push(newF);
     setStorage('fornecedores', fornecedores);
   },
 
   async getProdutos() {
+    if (firebaseApi.isConfigured()) {
+      const produtos = (await firebaseApi.getCollection('produtos')) as any[];
+      return produtos.map((p: any) => {
+        const qtd = parseInt(p.quantidade || 0);
+        const custo = parseFloat(p.custoUnitario || 0);
+        const preco = parseFloat(p.precoUnitario || 0);
+        const custoTotalEstoque = qtd * custo;
+        const valorTotalVenda = qtd * preco;
+        const lucroBruto = valorTotalVenda - custoTotalEstoque;
+        return { ...p, custoTotalEstoque, valorTotalVenda, lucroBruto };
+      });
+    }
+
     if (!IS_STATIC) {
       const res = await fetch('/api/produtos');
       if (res.ok) return res.json();
@@ -568,6 +849,13 @@ export const api = {
   },
 
   async createProduto(data: any) {
+    const newP = { ...data, id: Date.now() };
+
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.setDocument('produtos', newP.id, newP);
+      return newP;
+    }
+
     if (!IS_STATIC) {
       const res = await fetch('/api/produtos', {
         method: 'POST',
@@ -577,30 +865,65 @@ export const api = {
       return res.json();
     }
     const produtos = getStorage('produtos', []);
-    const newP = { ...data, id: Date.now() };
     produtos.push(newP);
     setStorage('produtos', produtos);
   },
 
   async exportBackupJSON() {
-    if (!IS_STATIC) {
+    if (!IS_STATIC && !firebaseApi.isConfigured()) {
       window.open('/api/backup/export', '_blank');
       return;
     }
+
+    let users: any[] = [];
+    let carteiras: any[] = [];
+    let entradas: any[] = [];
+    let saidas: any[] = [];
+    let fornecedores: any[] = [];
+    let produtos: any[] = [];
+    let categorias: any[] = [];
+    let turmas: any[] = [];
+    let alunos: any[] = [];
+    let mensalidades: any[] = [];
+
+    if (firebaseApi.isConfigured()) {
+      users = (await firebaseApi.getCollection('users')) as any[];
+      carteiras = (await firebaseApi.getCollection('carteiras')) as any[];
+      entradas = (await firebaseApi.getCollection('entradas')) as any[];
+      saidas = (await firebaseApi.getCollection('saidas')) as any[];
+      fornecedores = (await firebaseApi.getCollection('fornecedores')) as any[];
+      produtos = (await firebaseApi.getCollection('produtos')) as any[];
+      categorias = (await firebaseApi.getCollection('categorias')) as any[];
+      turmas = (await firebaseApi.getCollection('turmas')) as any[];
+      alunos = (await firebaseApi.getCollection('alunos')) as any[];
+      mensalidades = (await firebaseApi.getCollection('mensalidades')) as any[];
+    } else {
+      users = getStorage('users', []);
+      carteiras = getStorage('carteiras', []);
+      entradas = getStorage('entradas', []);
+      saidas = getStorage('saidas', []);
+      fornecedores = getStorage('fornecedores', []);
+      produtos = getStorage('produtos', []);
+      categorias = getStorage('categorias', []);
+      turmas = getStorage('turmas', []);
+      alunos = getStorage('alunos', []);
+      mensalidades = getStorage('mensalidades', []);
+    }
+
     const backupData = {
       formato: 'sistema-financeiro-escolar-export-v2',
       exportadoEm: new Date().toISOString(),
       tabelas: {
-        users: getStorage('users', []),
-        carteiras: getStorage('carteiras', []),
-        entradas: getStorage('entradas', []),
-        saidas: getStorage('saidas', []),
-        fornecedores: getStorage('fornecedores', []),
-        produtos: getStorage('produtos', []),
-        categorias: getStorage('categorias', []),
-        turmas: getStorage('turmas', []),
-        alunos: getStorage('alunos', []),
-        mensalidades: getStorage('mensalidades', []),
+        users,
+        carteiras,
+        entradas,
+        saidas,
+        fornecedores,
+        produtos,
+        categorias,
+        turmas,
+        alunos,
+        mensalidades,
       }
     };
     const jsonStr = JSON.stringify(backupData, null, 2);
@@ -616,6 +939,21 @@ export const api = {
     try {
       const data = JSON.parse(rawJsonText);
       if (!data.tabelas) throw new Error('Formato de backup inválido');
+
+      if (firebaseApi.isConfigured()) {
+        const t = data.tabelas;
+        if (t.users) for (const item of t.users) await firebaseApi.setDocument('users', item.id, item);
+        if (t.carteiras) for (const item of t.carteiras) await firebaseApi.setDocument('carteiras', item.id, item);
+        if (t.entradas) for (const item of t.entradas) await firebaseApi.setDocument('entradas', item.id, item);
+        if (t.saidas) for (const item of t.saidas) await firebaseApi.setDocument('saidas', item.id, item);
+        if (t.fornecedores) for (const item of t.fornecedores) await firebaseApi.setDocument('fornecedores', item.id, item);
+        if (t.produtos) for (const item of t.produtos) await firebaseApi.setDocument('produtos', item.id, item);
+        if (t.categorias) for (const item of t.categorias) await firebaseApi.setDocument('categorias', item.id, item);
+        if (t.turmas) for (const item of t.turmas) await firebaseApi.setDocument('turmas', item.id, item);
+        if (t.alunos) for (const item of t.alunos) await firebaseApi.setDocument('alunos', item.id, item);
+        if (t.mensalidades) for (const item of t.mensalidades) await firebaseApi.setDocument('mensalidades', item.id, item);
+        return true;
+      }
 
       if (data.tabelas.users) setStorage('users', data.tabelas.users);
       if (data.tabelas.carteiras) setStorage('carteiras', data.tabelas.carteiras);

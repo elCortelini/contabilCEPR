@@ -12,7 +12,8 @@ import {
   LogOut,
   GraduationCap,
   Tag,
-  Database
+  Database,
+  Cloud
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,11 +29,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, curre
     { id: 'carteiras', label: 'Carteiras', icon: Wallet, badge: '4' },
     { id: 'entradas', label: 'Entradas (Receitas)', icon: TrendingUp, badge: '99' },
     { id: 'saidas', label: 'Saídas (Despesas)', icon: TrendingDown, badge: '55' },
-    { id: 'alunos', label: 'Alunos & Mensalidades', icon: GraduationCap, badge: 'Novo' },
+    { id: 'alunos', label: 'Alunos & Mensalidades', icon: GraduationCap, badge: null },
     { id: 'categorias', label: 'Categorias', icon: Tag, badge: null },
     { id: 'fornecedores', label: 'Fornecedores', icon: Users, badge: null },
     { id: 'produtos', label: 'Produtos & Estoque', icon: Package, badge: null },
     { id: 'relatorios', label: 'Relatórios & CSV', icon: FileText, badge: null },
+    { id: 'firebase', label: 'Banco Online Firebase', icon: Cloud, badge: 'Nuvem' },
     { id: 'backup', label: 'Backup & Restauração', icon: Database, badge: null },
     { id: 'usuarios', label: 'Controle de Acessos', icon: Shield, badge: currentUser?.role === 'admin' ? 'Admin' : null },
   ];
@@ -78,8 +80,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, curre
                       ? 'bg-indigo-700 text-indigo-100'
                       : item.badge === 'Admin'
                       ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                      : item.badge === 'Novo'
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                      : item.badge === 'Nuvem'
+                      ? 'bg-sky-500/10 text-sky-400 border border-sky-500/30'
                       : 'bg-slate-800 text-slate-400 border border-slate-700'
                   }`}>
                     {item.badge}

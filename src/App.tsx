@@ -12,6 +12,7 @@ import { Usuarios } from './pages/Usuarios';
 import { Alunos } from './pages/Alunos';
 import { Categorias } from './pages/Categorias';
 import { BackupCenter } from './pages/BackupCenter';
+import { FirebaseConfig } from './pages/FirebaseConfig';
 import { Login } from './pages/Login';
 
 export default function App() {
@@ -93,6 +94,7 @@ export default function App() {
           {activeTab === 'fornecedores' && <Fornecedores />}
           {activeTab === 'produtos' && <Produtos />}
           {activeTab === 'relatorios' && <Relatorios />}
+          {activeTab === 'firebase' && <FirebaseConfig />}
           {activeTab === 'backup' && <BackupCenter />}
           {activeTab === 'usuarios' && <Usuarios currentUser={currentUser} />}
         </main>
