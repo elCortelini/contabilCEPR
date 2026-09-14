@@ -113,17 +113,26 @@ export const Saidas: React.FC = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
   };
 
-  const filtered = saidas.filter((s) => {
-    const matchesSearch = s.descricao?.toLowerCase().includes(search.toLowerCase()) || s.carteiraNome?.toLowerCase().includes(search.toLowerCase());
-    const matchesCarteira = !selectedCarteira || s.carteiraId.toString() === selectedCarteira;
-    const matchesForma = !selectedForma || (s.formaPagamento || '').toLowerCase() === selectedForma.toLowerCase();
+  const filtered = saidas
+    .filter((s) => {
+      const matchesSearch = s.descricao?.toLowerCase().includes(search.toLowerCase()) || s.carteiraNome?.toLowerCase().includes(search.toLowerCase());
+      const matchesCarteira = !selectedCarteira || s.carteiraId.toString() === selectedCarteira;
+      const matchesForma = !selectedForma || (s.formaPagamento || '').toLowerCase() === selectedForma.toLowerCase();
 
-    const itemDate = s.data ? s.data.substring(0, 10) : '';
-    const matchesInicio = !dataInicio || itemDate >= dataInicio;
-    const matchesFim = !dataFim || itemDate <= dataFim;
+      const itemDate = s.data ? s.data.substring(0, 10) : '';
+      const matchesInicio = !dataInicio || itemDate >= dataInicio;
+      const matchesFim = !dataFim || itemDate <= dataFim;
 
-    return matchesSearch && matchesCarteira && matchesForma && matchesInicio && matchesFim;
-  });
+      return matchesSearch && matchesCarteira && matchesForma && matchesInicio && matchesFim;
+    })
+    .sort((a, b) => {
+      const dateA = a.data ? new Date(a.data).getTime() : 0;
+      const dateB = b.data ? new Date(b.data).getTime() : 0;
+      if (dateB !== dateA) {
+        return dateB - dateA; // Mais recentes no topo
+      }
+      return Number(b.id) - Number(a.id); // Maior ID no topo se datas forem iguais
+    });
 
   const totalFiltrado = filtered.reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0);
 

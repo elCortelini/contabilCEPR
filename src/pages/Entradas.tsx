@@ -111,18 +111,27 @@ export const Entradas: React.FC = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
   };
 
-  const filtered = entradas.filter((e) => {
-    const matchesSearch = e.descricao?.toLowerCase().includes(search.toLowerCase()) || e.carteiraNome?.toLowerCase().includes(search.toLowerCase());
-    const matchesCarteira = !selectedCarteira || e.carteiraId.toString() === selectedCarteira;
-    const matchesForma = !selectedForma || (e.formaRecebimento || '').toLowerCase() === selectedForma.toLowerCase();
-    const matchesTurno = !selectedTurno || (e.turno || 'Matutino').toLowerCase() === selectedTurno.toLowerCase();
+  const filtered = entradas
+    .filter((e) => {
+      const matchesSearch = e.descricao?.toLowerCase().includes(search.toLowerCase()) || e.carteiraNome?.toLowerCase().includes(search.toLowerCase());
+      const matchesCarteira = !selectedCarteira || e.carteiraId.toString() === selectedCarteira;
+      const matchesForma = !selectedForma || (e.formaRecebimento || '').toLowerCase() === selectedForma.toLowerCase();
+      const matchesTurno = !selectedTurno || (e.turno || 'Matutino').toLowerCase() === selectedTurno.toLowerCase();
 
-    const itemDate = e.data ? e.data.substring(0, 10) : '';
-    const matchesInicio = !dataInicio || itemDate >= dataInicio;
-    const matchesFim = !dataFim || itemDate <= dataFim;
+      const itemDate = e.data ? e.data.substring(0, 10) : '';
+      const matchesInicio = !dataInicio || itemDate >= dataInicio;
+      const matchesFim = !dataFim || itemDate <= dataFim;
 
-    return matchesSearch && matchesCarteira && matchesForma && matchesTurno && matchesInicio && matchesFim;
-  });
+      return matchesSearch && matchesCarteira && matchesForma && matchesTurno && matchesInicio && matchesFim;
+    })
+    .sort((a, b) => {
+      const dateA = a.data ? new Date(a.data).getTime() : 0;
+      const dateB = b.data ? new Date(b.data).getTime() : 0;
+      if (dateB !== dateA) {
+        return dateB - dateA; // Mais recentes no topo
+      }
+      return Number(b.id) - Number(a.id); // Maior ID no topo se datas forem iguais
+    });
 
   const totalFiltrado = filtered.reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0);
 
