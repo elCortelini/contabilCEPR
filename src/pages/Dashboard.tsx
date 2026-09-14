@@ -20,6 +20,7 @@ import {
 } from 'recharts';
 import { api } from '../services/api';
 import { AlertasBanner } from '../components/AlertasBanner';
+import { formatLocalDate } from '../utils/formatters';
 
 export const Dashboard: React.FC = () => {
   const [data, setData] = useState<any>(null);
@@ -249,7 +250,7 @@ export const Dashboard: React.FC = () => {
                     </span>
                   </td>
                   <td className="py-3 px-4 text-slate-400">
-                    {new Date(mov.data).toLocaleDateString('pt-BR')}
+                    {formatLocalDate(mov.data)}
                   </td>
                   <td className="py-3 px-4 font-medium text-slate-200">
                     {mov.carteiraNome}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Search, Trash2, TrendingDown, Wallet, Building2, Printer, Calendar, RefreshCw, Pencil } from 'lucide-react';
 import { api } from '../services/api';
 import { ReciboPdf } from '../components/ReciboPdf';
+import { formatLocalDate, getTodayLocalDate } from '../utils/formatters';
 
 export const Saidas: React.FC = () => {
   const [saidas, setSaidas] = useState<any[]>([]);
@@ -29,7 +30,7 @@ export const Saidas: React.FC = () => {
     descricao: '',
     formaPagamento: 'dinheiro',
     fornecedorId: '',
-    data: new Date().toISOString().split('T')[0],
+    data: getTodayLocalDate(),
   });
 
   const loadData = async () => {
@@ -275,7 +276,7 @@ export const Saidas: React.FC = () => {
                 <tr key={item.id} className="hover:bg-slate-900/40 transition">
                   <td className="py-3 px-4 font-bold text-slate-400">#{item.id}</td>
                   <td className="py-3 px-4 text-slate-300 font-medium">
-                    {new Date(item.data).toLocaleDateString('pt-BR')}
+                    {formatLocalDate(item.data)}
                   </td>
                   <td className="py-3 px-4">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-semibold">

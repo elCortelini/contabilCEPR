@@ -1,5 +1,6 @@
 import React from 'react';
 import { Printer, School, X } from 'lucide-react';
+import { formatLocalDate } from '../utils/formatters';
 
 interface ReciboProps {
   item: {
@@ -71,7 +72,7 @@ export const ReciboPdf: React.FC<ReciboProps> = ({ item, onClose }) => {
             <div className="grid grid-cols-2 gap-3 text-[11px] bg-slate-900/40 p-3 rounded-lg">
               <div>
                 <span className="text-slate-400 block">Data da Operação:</span>
-                <span className="font-semibold text-slate-200">{new Date(item.data).toLocaleDateString('pt-BR')}</span>
+                <span className="font-semibold text-slate-200">{formatLocalDate(item.data)}</span>
               </div>
               <div>
                 <span className="text-slate-400 block">Forma de Pagamento:</span>
