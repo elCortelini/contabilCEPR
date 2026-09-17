@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Trash2, TrendingUp, Wallet, Printer, Calendar, RefreshCw, Pencil, Sun, Moon, Clock } from 'lucide-react';
+import { Plus, Search, Trash2, TrendingUp, Wallet, Printer, Calendar, RefreshCw, Pencil, Sun, Moon, Clock, SlidersHorizontal } from 'lucide-react';
 import { api } from '../services/api';
 import { ReciboPdf } from '../components/ReciboPdf';
 import { formatLocalDate, getTodayLocalDate } from '../utils/formatters';
@@ -8,6 +8,7 @@ export const Entradas: React.FC = () => {
   const [entradas, setEntradas] = useState<any[]>([]);
   const [carteiras, setCarteiras] = useState<any[]>([]);
   const [categorias, setCategorias] = useState<any[]>([]);
+  const [ajustesPendentes, setAjustesPendentes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -15,6 +16,7 @@ export const Entradas: React.FC = () => {
   const [selectedCarteira, setSelectedCarteira] = useState('');
   const [selectedForma, setSelectedForma] = useState('');
   const [selectedTurno, setSelectedTurno] = useState('');
+  const [selectedTipoAjuste, setSelectedTipoAjuste] = useState('todos');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
 
@@ -22,6 +24,10 @@ export const Entradas: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [reciboItem, setReciboItem] = useState<any>(null);
+
+  // Ajuste de saldo flag
+  const [isAjuste, setIsAjuste] = useState(false);
+  const [ajusteVinculadoId, setAjusteVinculadoId] = useState('');
 
   const [form, setForm] = useState({
     carteiraId: '',
@@ -46,6 +52,9 @@ export const Entradas: React.FC = () => {
 
     const cats = await api.getCategorias();
     setCategorias(cats.filter((c: any) => c.tipo === 'entrada'));
+
+    const aj = await api.getAjustesSaldo();
+    setAjustesPendentes((aj as any[]).filter((a: any) => a.status === 'pendente'));
   };
 
   useEffect(() => {
@@ -54,6 +63,8 @@ export const Entradas: React.FC = () => {
 
   const handleOpenCreate = () => {
     setEditingItem(null);
+    setIsAjuste(false);
+    setAjusteVinculadoId('');
     setForm({
       carteiraId: carteiras.length > 0 ? carteiras[0].id.toString() : '',
       categoriaId: '',
@@ -68,6 +79,8 @@ export const Entradas: React.FC = () => {
 
   const handleOpenEdit = (item: any) => {
     setEditingItem(item);
+    setIsAjuste(Boolean(item.isAjuste));
+    setAjusteVinculadoId(item.ajusteVinculadoId ? item.ajusteVinculadoId.toString() : '');
     setForm({
       carteiraId: item.carteiraId.toString(),
       categoriaId: item.categoriaId ? item.categoriaId.toString() : '',
@@ -82,11 +95,22 @@ export const Entradas: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      ...form,
+      isAjuste,
+      ajusteVinculadoId: isAjuste && ajusteVinculadoId ? Number(ajusteVinculadoId) : null,
+    };
+
     if (editingItem) {
-      await api.updateEntrada(editingItem.id, form);
+      await api.updateEntrada(editingItem.id, payload);
     } else {
-      await api.createEntrada(form);
+      await api.createEntrada(payload);
     }
+
+    if (isAjuste && ajusteVinculadoId) {
+      await api.resolverAjusteSaldo(Number(ajusteVinculadoId));
+    }
+
     setModalOpen(false);
     setEditingItem(null);
     loadData();
@@ -104,6 +128,7 @@ export const Entradas: React.FC = () => {
     setSelectedCarteira('');
     setSelectedForma('');
     setSelectedTurno('');
+    setSelectedTipoAjuste('todos');
     setDataInicio('');
     setDataFim('');
   };
@@ -118,12 +143,18 @@ export const Entradas: React.FC = () => {
       const matchesCarteira = !selectedCarteira || e.carteiraId.toString() === selectedCarteira;
       const matchesForma = !selectedForma || (e.formaRecebimento || '').toLowerCase() === selectedForma.toLowerCase();
       const matchesTurno = !selectedTurno || (e.turno || 'Matutino').toLowerCase() === selectedTurno.toLowerCase();
+      const matchesTipoAjuste =
+        selectedTipoAjuste === 'todos' || !selectedTipoAjuste
+          ? true
+          : selectedTipoAjuste === 'ajustes'
+          ? Boolean(e.isAjuste)
+          : !e.isAjuste;
 
       const itemDate = e.data ? e.data.substring(0, 10) : '';
       const matchesInicio = !dataInicio || itemDate >= dataInicio;
       const matchesFim = !dataFim || itemDate <= dataFim;
 
-      return matchesSearch && matchesCarteira && matchesForma && matchesTurno && matchesInicio && matchesFim;
+      return matchesSearch && matchesCarteira && matchesForma && matchesTurno && matchesTipoAjuste && matchesInicio && matchesFim;
     })
     .sort((a, b) => {
       const dateA = a.data ? new Date(a.data).getTime() : 0;
@@ -173,9 +204,9 @@ export const Entradas: React.FC = () => {
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
             <Calendar className="w-4 h-4 text-indigo-600" />
-            Filtros por Período, Turno, Carteira e Forma
+            Filtros por Período, Turno, Carteira, Forma e Tipo
           </span>
-          {(search || selectedCarteira || selectedForma || selectedTurno || dataInicio || dataFim) && (
+          {(search || selectedCarteira || selectedForma || selectedTurno || (selectedTipoAjuste && selectedTipoAjuste !== 'todos') || dataInicio || dataFim) && (
             <button
               onClick={clearFilters}
               className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer"
@@ -185,7 +216,7 @@ export const Entradas: React.FC = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
           {/* Search */}
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -240,6 +271,19 @@ export const Entradas: React.FC = () => {
               <option value="pix">PIX</option>
               <option value="cartao">Cartão</option>
               <option value="outro">Outro</option>
+            </select>
+          </div>
+
+          {/* Tipo Entrada / Ajuste Filter */}
+          <div>
+            <select
+              value={selectedTipoAjuste}
+              onChange={(e) => setSelectedTipoAjuste(e.target.value)}
+              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-indigo-600"
+            >
+              <option value="todos">Todos os Tipos</option>
+              <option value="receitas">Apenas Receitas</option>
+              <option value="ajustes">Apenas Ajustes de Saldo</option>
             </select>
           </div>
 
@@ -318,7 +362,15 @@ export const Entradas: React.FC = () => {
                     )}
                   </td>
                   <td className="py-3 px-4 font-normal text-slate-800">
-                    {item.descricao || 'Sem descrição'}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {item.isAjuste && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                          <SlidersHorizontal className="w-3 h-3" />
+                          Ajuste de Saldo
+                        </span>
+                      )}
+                      <span>{item.descricao || 'Sem descrição'}</span>
+                    </div>
                   </td>
                   <td className="py-3 px-4 capitalize text-slate-600 font-medium">
                     {item.formaRecebimento}
@@ -381,6 +433,68 @@ export const Entradas: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Opção Ajuste de Saldo */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAjuste}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIsAjuste(checked);
+                      if (checked && !form.descricao) {
+                        setForm((prev) => ({ ...prev, descricao: 'Ajuste de Saldo (Acerto Real vs Contábil)' }));
+                      }
+                    }}
+                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-xs font-bold text-slate-800">Esta entrada é um Ajuste de Saldo</span>
+                  </div>
+                </label>
+                <p className="text-[11px] text-slate-500 pl-6">
+                  Marque esta opção para lançar este valor como regularização de diferença entre o saldo real e o contábil (ex.: sobra apurada em conferência).
+                </p>
+
+                {isAjuste && ajustesPendentes.length > 0 && (
+                  <div className="pt-2 pl-6 border-t border-slate-200">
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Vincular a uma pendência de acerto aberta (opcional):
+                    </label>
+                    <select
+                      value={ajusteVinculadoId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setAjusteVinculadoId(val);
+                        if (val) {
+                          const aj = ajustesPendentes.find((a: any) => a.id.toString() === val);
+                          if (aj) {
+                            setForm((prev) => ({
+                              ...prev,
+                              carteiraId: aj.carteiraId.toString(),
+                              valor: Math.abs(aj.diferenca).toFixed(2),
+                              descricao: `Ajuste de Saldo - ${aj.observacao || 'Conferência física'}`,
+                            }));
+                          }
+                        }
+                      }}
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-600"
+                    >
+                      <option value="">Nenhuma (ajuste avulso)</option>
+                      {ajustesPendentes.map((aj: any) => (
+                        <option key={aj.id} value={aj.id}>
+                          {aj.carteiraNome} — Dif: {aj.diferenca >= 0 ? '+' : ''}{formatBrl(aj.diferenca)} ({aj.observacao || 'Sem obs'})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-emerald-700 mt-1">
+                      Ao salvar, a pendência vinculada será automaticamente marcada como "Resolvida".
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
