@@ -869,6 +869,50 @@ export const api = {
     setStorage('produtos', produtos);
   },
 
+  async getAjustesSaldo() {
+    if (firebaseApi.isConfigured()) {
+      return await firebaseApi.getCollection('ajustesSaldo');
+    }
+    return getStorage('ajustesSaldo', []);
+  },
+
+  async saveAjusteSaldo(data: {
+    carteiraId: number;
+    carteiraNome: string;
+    saldoCalculado: number;
+    saldoApurado: number;
+    diferenca: number;
+    observacao: string;
+    criadoPor?: string;
+  }) {
+    const newAjuste = {
+      ...data,
+      id: Date.now(),
+      data: new Date().toISOString().split('T')[0],
+      criadoEm: new Date().toISOString(),
+      status: 'pendente',
+    };
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.setDocument('ajustesSaldo', newAjuste.id, newAjuste);
+      return newAjuste;
+    }
+    const ajustes = getStorage('ajustesSaldo', []);
+    ajustes.unshift(newAjuste);
+    setStorage('ajustesSaldo', ajustes);
+    return newAjuste;
+  },
+
+  async resolverAjusteSaldo(id: number) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.updateDocument('ajustesSaldo', id, { status: 'resolvido' });
+      return;
+    }
+    const ajustes = getStorage('ajustesSaldo', []).map((a: any) =>
+      a.id === id ? { ...a, status: 'resolvido' } : a
+    );
+    setStorage('ajustesSaldo', ajustes);
+  },
+
   async exportBackupJSON() {
     if (!IS_STATIC && !firebaseApi.isConfigured()) {
       window.open('/api/backup/export', '_blank');
