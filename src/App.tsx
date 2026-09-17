@@ -69,10 +69,10 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-950 overflow-hidden text-slate-100">
+    <div className="flex h-screen bg-slate-100 overflow-hidden text-slate-800">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-slate-900 border border-emerald-500/50 text-emerald-300 px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 animate-bounce">
+        <div className="fixed top-4 right-4 z-50 bg-white border border-emerald-500 text-emerald-800 px-4 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-bounce">
           {toastMessage}
         </div>
       )}

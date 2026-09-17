@@ -23,19 +23,19 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onReimport, isReimpor
   };
 
   return (
-    <header className="h-16 bg-slate-900/60 border-b border-slate-800/80 px-6 flex items-center justify-between backdrop-blur-md sticky top-0 z-20">
+    <header className="h-16 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between shadow-md sticky top-0 z-20 text-white">
       <div>
         <h2 className="text-lg font-bold text-white tracking-tight">
           {titles[activeTab] || 'Gestão Financeira Escolar'}
         </h2>
-        <p className="text-xs text-slate-400 font-normal">
+        <p className="text-xs text-slate-300 font-normal">
           Colegio Educacional • Ano Letivo 2026
         </p>
       </div>
 
       <div className="flex items-center gap-3">
         {/* Status Indicator */}
-        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-semibold">
           <CheckCircle2 className="w-3.5 h-3.5" />
           <span>Base Migrada (154 Lançamentos)</span>
         </div>
@@ -44,7 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onReimport, isReimpor
         <button
           onClick={onReimport}
           disabled={isReimporting}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition cursor-pointer disabled:opacity-50"
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-semibold border border-slate-700 transition cursor-pointer disabled:opacity-50"
           title="Reimportar dados do backup JSON"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isReimporting ? 'animate-spin text-indigo-400' : ''}`} />
@@ -54,7 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onReimport, isReimpor
         {/* Quick CSV Export button */}
         <button
           onClick={handleExportCsv}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition cursor-pointer"
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/30 transition cursor-pointer"
         >
           <Download className="w-3.5 h-3.5" />
           <span>Exportar CSV</span>

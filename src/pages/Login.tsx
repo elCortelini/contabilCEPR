@@ -92,31 +92,31 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden select-none">
+    <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4 relative overflow-hidden select-none">
       {/* Background Orbs */}
-      <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="w-full max-w-md space-y-6 relative z-10">
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 flex items-center justify-center mx-auto shadow-2xl shadow-indigo-500/30 border border-indigo-400/20">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/20 border border-indigo-200">
             <School className="w-9 h-9 text-white" />
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">
-            Contábil<span className="text-indigo-400">CEPR</span>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            Contábil<span className="text-indigo-600">CEPR</span>
           </h1>
-          <p className="text-xs text-slate-400 font-medium">Centro Educacional Pedro Rizzi — Gestão Financeira</p>
+          <p className="text-xs text-slate-500 font-medium">Centro Educacional Pedro Rizzi — Gestão Financeira</p>
         </div>
 
         {/* Login Box */}
-        <div className="p-8 rounded-3xl space-y-6 border border-slate-800 bg-slate-900/90 shadow-2xl backdrop-blur-md">
+        <div className="p-8 rounded-3xl space-y-6 border border-slate-200 bg-white shadow-xl">
           <div className="space-y-1 text-center">
-            <h2 className="text-base font-bold text-white flex items-center justify-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-base font-bold text-slate-900 flex items-center justify-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-indigo-600" />
               Autenticação & Controle de Acesso
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Acesso exclusivo para administradores e contas autorizadas
             </p>
           </div>
@@ -125,14 +125,14 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           {statusMessage && (
             <div className={`p-4 rounded-2xl text-xs space-y-1 border ${
               statusMessage.type === 'error'
-                ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                ? 'bg-rose-50 border-rose-200 text-rose-800'
                 : statusMessage.type === 'warning'
-                ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
+                ? 'bg-amber-50 border-amber-200 text-amber-800'
+                : 'bg-indigo-50 border-indigo-200 text-indigo-800'
             }`}>
               <div className="font-bold flex items-center gap-1.5">
-                {statusMessage.type === 'error' && <Lock className="w-4 h-4 text-rose-400" />}
-                {statusMessage.type === 'warning' && <AlertTriangle className="w-4 h-4 text-amber-400" />}
+                {statusMessage.type === 'error' && <Lock className="w-4 h-4 text-rose-600" />}
+                {statusMessage.type === 'warning' && <AlertTriangle className="w-4 h-4 text-amber-600" />}
                 {statusMessage.title}
               </div>
               <p className="opacity-90">{statusMessage.text}</p>
@@ -143,7 +143,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           <button
             onClick={handleLoginGoogle}
             disabled={loading}
-            className="w-full flex items-center justify-center space-x-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-4 rounded-xl text-sm transition-all shadow-lg shadow-indigo-900/30 cursor-pointer disabled:opacity-50"
+            className="w-full flex items-center justify-center space-x-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-4 rounded-xl text-sm transition-all shadow-md shadow-indigo-600/20 cursor-pointer disabled:opacity-50"
           >
             <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
               <path d="M12.24 10.285V13.4h6.887c-.58 3.474-3.528 5.926-6.887 5.926-4.12 0-7.462-3.342-7.462-7.462s3.342-7.462 7.462-7.462c1.862 0 3.555.69 4.858 1.832l2.427-2.427C17.65 2.378 15.116 1.5 12.24 1.5 6.467 1.5 1.782 6.185 1.782 11.96s4.685 10.46 10.458 10.46c6.14 0 10.222-4.316 10.222-10.4 0-.712-.075-1.232-.17-1.735H12.24z" />
@@ -152,9 +152,9 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </button>
 
           <div className="relative flex py-1 items-center">
-            <div className="flex-grow border-t border-slate-800"></div>
-            <span className="flex-shrink mx-4 text-[10px] text-slate-500 uppercase font-bold">ou selecione conta salva</span>
-            <div className="flex-grow border-t border-slate-800"></div>
+            <div className="flex-grow border-t border-slate-200"></div>
+            <span className="flex-shrink mx-4 text-[10px] text-slate-400 uppercase font-bold">ou selecione conta salva</span>
+            <div className="flex-grow border-t border-slate-200"></div>
           </div>
 
           {/* Quick Account Selector */}
@@ -165,21 +165,21 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                   key={u.email}
                   onClick={() => handleLoginWithEmail(u.email, u.name)}
                   disabled={loading}
-                  className="w-full p-3 rounded-xl bg-slate-900/80 hover:bg-indigo-600/20 border border-slate-800 hover:border-indigo-500/40 flex items-center justify-between transition text-left cursor-pointer group"
+                  className="w-full p-3 rounded-xl bg-slate-50 hover:bg-indigo-50/60 border border-slate-200 hover:border-indigo-300 flex items-center justify-between transition text-left cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center font-bold text-xs text-indigo-400">
+                    <div className="w-7 h-7 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center font-bold text-xs text-indigo-700">
                       {u.name.substring(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-white group-hover:text-indigo-300 transition">{u.name}</p>
-                      <p className="text-[10px] text-slate-400">{u.email}</p>
+                      <p className="text-xs font-semibold text-slate-800 group-hover:text-indigo-600 transition">{u.name}</p>
+                      <p className="text-[10px] text-slate-500">{u.email}</p>
                     </div>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                     u.role === 'admin'
-                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                      : 'bg-slate-800 text-slate-400'
+                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : 'bg-slate-200 text-slate-700'
                   }`}>
                     {u.badge}
                   </span>
@@ -203,14 +203,14 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 placeholder="Digitar outro e-mail..."
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading || !emailInput}
-              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
+              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
             >
               <span>Entrar por E-mail</span>
               <ArrowRight className="w-4 h-4" />

@@ -92,29 +92,29 @@ export const Alunos: React.FC = () => {
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-6 rounded-2xl">
         <div>
-          <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-            <GraduationCap className="w-5 h-5 text-indigo-400" />
+          <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-indigo-600" />
             Alunos, Turmas & Controle de Mensalidades
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">Gestão de alunos por turma e quitação de mensalidades com débito/crédito na carteira</p>
+          <p className="text-xs text-slate-500 mt-0.5">Gestão de alunos por turma e quitação de mensalidades com débito/crédito na carteira</p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={() => setModalTurmaOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+            className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-300 transition"
           >
             + Turma
           </button>
           <button
             onClick={() => setModalAlunoOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+            className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-300 transition"
           >
             + Aluno
           </button>
           <button
             onClick={() => setModalMensOpen(true)}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 transition"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md shadow-indigo-600/30 transition"
           >
             + Mensalidade
           </button>
@@ -123,35 +123,35 @@ export const Alunos: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="glass-card p-5 rounded-2xl border-l-4 border-l-indigo-500">
-          <span className="text-xs font-semibold text-slate-400 uppercase">Alunos Cadastrados</span>
-          <h3 className="text-2xl font-black text-white mt-1">{alunos.length} Alunos</h3>
-          <p className="text-[10px] text-slate-400 mt-1">{turmas.length} turmas ativas</p>
+        <div className="glass-card p-5 rounded-2xl border-l-4 border-l-indigo-600">
+          <span className="text-xs font-semibold text-slate-500 uppercase">Alunos Cadastrados</span>
+          <h3 className="text-2xl font-black text-slate-900 mt-1">{alunos.length} Alunos</h3>
+          <p className="text-[10px] text-slate-500 mt-1">{turmas.length} turmas ativas</p>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl border-l-4 border-l-emerald-500">
-          <span className="text-xs font-semibold text-slate-400 uppercase">Mensalidades Recebidas</span>
-          <h3 className="text-2xl font-black text-emerald-400 mt-1">{formatBrl(totalMensalidadesArrecadadas)}</h3>
-          <p className="text-[10px] text-slate-400 mt-1">Valores creditados na carteira</p>
+        <div className="glass-card p-5 rounded-2xl border-l-4 border-l-emerald-600">
+          <span className="text-xs font-semibold text-slate-500 uppercase">Mensalidades Recebidas</span>
+          <h3 className="text-2xl font-black text-emerald-600 mt-1">{formatBrl(totalMensalidadesArrecadadas)}</h3>
+          <p className="text-[10px] text-slate-500 mt-1">Valores creditados na carteira</p>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl border-l-4 border-l-amber-500">
-          <span className="text-xs font-semibold text-slate-400 uppercase">Mensalidades a Receber</span>
-          <h3 className="text-2xl font-black text-amber-400 mt-1">{formatBrl(totalMensalidadesPendentes)}</h3>
-          <p className="text-[10px] text-slate-400 mt-1">Valores pendentes dos responsáveis</p>
+        <div className="glass-card p-5 rounded-2xl border-l-4 border-l-amber-600">
+          <span className="text-xs font-semibold text-slate-500 uppercase">Mensalidades a Receber</span>
+          <h3 className="text-2xl font-black text-amber-600 mt-1">{formatBrl(totalMensalidadesPendentes)}</h3>
+          <p className="text-[10px] text-slate-500 mt-1">Valores pendentes dos responsáveis</p>
         </div>
       </div>
 
       {/* Mensalidades Table */}
       <div className="glass-card p-6 rounded-2xl space-y-4">
-        <h3 className="text-base font-bold text-white flex items-center gap-2">
-          <DollarSign className="w-5 h-5 text-emerald-400" />
+        <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+          <DollarSign className="w-5 h-5 text-emerald-600" />
           Controle de Mensalidades
         </h3>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-900/90 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-800">
+            <thead className="bg-slate-100 text-slate-700 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-200">
               <tr>
                 <th className="py-3.5 px-4">Aluno</th>
                 <th className="py-3.5 px-4">Responsável</th>
@@ -162,21 +162,21 @@ export const Alunos: React.FC = () => {
                 <th className="py-3.5 px-4 text-center">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+            <tbody className="divide-y divide-slate-200 text-slate-700">
               {mensalidades.map((m) => (
-                <tr key={m.id} className="hover:bg-slate-900/40 transition">
-                  <td className="py-3.5 px-4 font-bold text-white">{m.alunoNome}</td>
-                  <td className="py-3.5 px-4 text-slate-300">{m.responsavel || '—'}</td>
-                  <td className="py-3.5 px-4 text-slate-400 font-medium">{m.turmaNome || '—'}</td>
-                  <td className="py-3.5 px-4 font-semibold text-indigo-300">{m.mesReferencia}</td>
-                  <td className="py-3.5 px-4 text-right font-black text-emerald-400">{formatBrl(m.valor)}</td>
+                <tr key={m.id} className="hover:bg-slate-50 transition">
+                  <td className="py-3.5 px-4 font-bold text-slate-900">{m.alunoNome}</td>
+                  <td className="py-3.5 px-4 text-slate-600">{m.responsavel || '—'}</td>
+                  <td className="py-3.5 px-4 text-slate-500 font-medium">{m.turmaNome || '—'}</td>
+                  <td className="py-3.5 px-4 font-semibold text-indigo-700">{m.mesReferencia}</td>
+                  <td className="py-3.5 px-4 text-right font-black text-emerald-600">{formatBrl(m.valor)}</td>
                   <td className="py-3.5 px-4">
                     {m.status === 'pago' ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold">
                         <CheckCircle2 className="w-3 h-3" /> Pago
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-bold">
                         <Clock className="w-3 h-3" /> Pendente
                       </span>
                     )}
@@ -193,7 +193,7 @@ export const Alunos: React.FC = () => {
                         Baixar Pagamento
                       </button>
                     ) : (
-                      <span className="text-[10px] text-slate-500 font-medium">Quitado</span>
+                      <span className="text-[10px] text-slate-400 font-medium">Quitado</span>
                     )}
                   </td>
                 </tr>
@@ -205,38 +205,38 @@ export const Alunos: React.FC = () => {
 
       {/* Modal Nova Turma */}
       {modalTurmaOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-card w-full max-w-md p-6 rounded-2xl space-y-4 border border-slate-700 shadow-2xl">
-            <h3 className="text-lg font-bold text-white">Cadastrar Turma</h3>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md p-6 rounded-2xl space-y-4 border border-slate-200 shadow-2xl text-slate-800">
+            <h3 className="text-lg font-bold text-slate-900">Cadastrar Turma</h3>
             <form onSubmit={handleCreateTurma} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Nome da Turma</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Nome da Turma</label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: 6º Ano A, Infantil 4"
                   value={turmaForm.nome}
                   onChange={(e) => setTurmaForm({ ...turmaForm, nome: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Ano Letivo</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Ano Letivo</label>
                   <input
                     type="text"
                     value={turmaForm.anoLetivo}
                     onChange={(e) => setTurmaForm({ ...turmaForm, anoLetivo: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Turno</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Turno</label>
                   <select
                     value={turmaForm.turno}
                     onChange={(e) => setTurmaForm({ ...turmaForm, turno: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
                   >
                     <option value="Matutino">Matutino</option>
                     <option value="Vespertino">Vespertino</option>
@@ -245,8 +245,8 @@ export const Alunos: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setModalTurmaOpen(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400">Cancelar</button>
+              <div className="flex justify-end gap-3 pt-2 border-t border-slate-200">
+                <button type="button" onClick={() => setModalTurmaOpen(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button type="submit" className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white">Salvar Turma</button>
               </div>
             </form>
@@ -256,28 +256,28 @@ export const Alunos: React.FC = () => {
 
       {/* Modal Novo Aluno */}
       {modalAlunoOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-card w-full max-w-md p-6 rounded-2xl space-y-4 border border-slate-700 shadow-2xl">
-            <h3 className="text-lg font-bold text-white">Cadastrar Aluno</h3>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md p-6 rounded-2xl space-y-4 border border-slate-200 shadow-2xl text-slate-800">
+            <h3 className="text-lg font-bold text-slate-900">Cadastrar Aluno</h3>
             <form onSubmit={handleCreateAluno} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Nome Completo do Aluno</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Nome Completo do Aluno</label>
                 <input
                   type="text"
                   required
                   placeholder="Nome do aluno"
                   value={alunoForm.nome}
                   onChange={(e) => setAlunoForm({ ...alunoForm, nome: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Turma</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Turma</label>
                 <select
                   value={alunoForm.turmaId}
                   onChange={(e) => setAlunoForm({ ...alunoForm, turmaId: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
                 >
                   {turmas.map((t) => (
                     <option key={t.id} value={t.id}>{t.nome} ({t.turno})</option>
@@ -286,29 +286,29 @@ export const Alunos: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Nome do Responsável</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Nome do Responsável</label>
                 <input
                   type="text"
                   placeholder="Nome do pai/mãe/responsável"
                   value={alunoForm.responsavel}
                   onChange={(e) => setAlunoForm({ ...alunoForm, responsavel: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Telefone / Contato</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Telefone / Contato</label>
                 <input
                   type="text"
                   placeholder="(47) 99999-9999"
                   value={alunoForm.contato}
                   onChange={(e) => setAlunoForm({ ...alunoForm, contato: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setModalAlunoOpen(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400">Cancelar</button>
+              <div className="flex justify-end gap-3 pt-2 border-t border-slate-200">
+                <button type="button" onClick={() => setModalAlunoOpen(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button type="submit" className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white">Salvar Aluno</button>
               </div>
             </form>
@@ -318,16 +318,16 @@ export const Alunos: React.FC = () => {
 
       {/* Modal Nova Mensalidade */}
       {modalMensOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-card w-full max-w-md p-6 rounded-2xl space-y-4 border border-slate-700 shadow-2xl">
-            <h3 className="text-lg font-bold text-white">Gerar Cobrança de Mensalidade</h3>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md p-6 rounded-2xl space-y-4 border border-slate-200 shadow-2xl text-slate-800">
+            <h3 className="text-lg font-bold text-slate-900">Gerar Cobrança de Mensalidade</h3>
             <form onSubmit={handleCreateMensalidade} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Aluno</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Aluno</label>
                 <select
                   value={mensForm.alunoId}
                   onChange={(e) => setMensForm({ ...mensForm, alunoId: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
                 >
                   {alunos.map((a) => (
                     <option key={a.id} value={a.id}>{a.nome} ({a.turmaNome})</option>
@@ -337,28 +337,28 @@ export const Alunos: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Mês Referência</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mês Referência</label>
                   <input
                     type="month"
                     value={mensForm.mesReferencia}
                     onChange={(e) => setMensForm({ ...mensForm, mesReferencia: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Valor (R$)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Valor (R$)</label>
                   <input
                     type="number"
                     step="0.01"
                     value={mensForm.valor}
                     onChange={(e) => setMensForm({ ...mensForm, valor: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 font-bold text-emerald-400"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600 font-bold text-emerald-600"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setModalMensOpen(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400">Cancelar</button>
+              <div className="flex justify-end gap-3 pt-2 border-t border-slate-200">
+                <button type="button" onClick={() => setModalMensOpen(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button type="submit" className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white">Gerar Mensalidade</button>
               </div>
             </form>
@@ -368,23 +368,23 @@ export const Alunos: React.FC = () => {
 
       {/* Modal Baixar Pagamento Mensalidade */}
       {modalPayOpen && selectedMensalidade && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-card w-full max-w-md p-6 rounded-2xl space-y-4 border border-slate-700 shadow-2xl">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-emerald-400" />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md p-6 rounded-2xl space-y-4 border border-slate-200 shadow-2xl text-slate-800">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-emerald-600" />
               Baixar Pagamento: {selectedMensalidade.alunoNome}
             </h3>
-            <p className="text-xs text-slate-400">
-              Valor de <strong className="text-emerald-400">{formatBrl(selectedMensalidade.valor)}</strong> será creditado na carteira selecionada.
+            <p className="text-xs text-slate-600">
+              Valor de <strong className="text-emerald-600">{formatBrl(selectedMensalidade.valor)}</strong> será creditado na carteira selecionada.
             </p>
 
             <form onSubmit={handlePaySubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Carteira de Destino (Crédito)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Carteira de Destino (Crédito)</label>
                 <select
                   value={payForm.carteiraId}
                   onChange={(e) => setPayForm({ ...payForm, carteiraId: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
                 >
                   {carteiras.map((c) => (
                     <option key={c.id} value={c.id}>{c.nome} (Saldo atual: {formatBrl(c.saldoAtual)})</option>
@@ -393,11 +393,11 @@ export const Alunos: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Forma de Recebimento</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Forma de Recebimento</label>
                 <select
                   value={payForm.formaRecebimento}
                   onChange={(e) => setPayForm({ ...payForm, formaRecebimento: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
                 >
                   <option value="pix">PIX</option>
                   <option value="dinheiro">Dinheiro em Espécie</option>
@@ -406,8 +406,8 @@ export const Alunos: React.FC = () => {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setModalPayOpen(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400">Cancelar</button>
+              <div className="flex justify-end gap-3 pt-2 border-t border-slate-200">
+                <button type="button" onClick={() => setModalPayOpen(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button type="submit" className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white">Confirmar Recebimento</button>
               </div>
             </form>

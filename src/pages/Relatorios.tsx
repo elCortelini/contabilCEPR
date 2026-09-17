@@ -51,16 +51,16 @@ export const Relatorios: React.FC = () => {
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-6 rounded-2xl">
         <div>
-          <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-400" />
+          <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-indigo-600" />
             Relatórios Financeiros & Comparativo de Turnos
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">Demonstrativo por carteira, análise comparativa Matutino vs Vespertino e exportação CSV</p>
+          <p className="text-xs text-slate-500 mt-0.5">Demonstrativo por carteira, análise comparativa Matutino vs Vespertino e exportação CSV</p>
         </div>
 
         <button
           onClick={handleExportCsv}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 transition cursor-pointer"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md shadow-indigo-600/30 transition cursor-pointer"
         >
           <Download className="w-4 h-4" />
           Exportar Relatório Completo (CSV)
@@ -71,34 +71,34 @@ export const Relatorios: React.FC = () => {
       <div className="glass-card p-6 rounded-2xl space-y-6 border-l-4 border-l-amber-500">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <BarChart2 className="w-5 h-5 text-amber-400" />
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <BarChart2 className="w-5 h-5 text-amber-600" />
               Relatório Comparativo por Turno (Matutino vs. Vespertino)
             </h3>
-            <p className="text-xs text-slate-400">Análise de arrecadação da cantina e eventos por período de aulas</p>
+            <p className="text-xs text-slate-500">Análise de arrecadação da cantina e eventos por período de aulas</p>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-300">
+              <Calendar className="w-3.5 h-3.5 text-slate-500" />
               <input
                 type="date"
                 value={dataInicio}
                 onChange={(e) => setDataInicio(e.target.value)}
-                className="bg-transparent text-xs text-slate-200 focus:outline-none"
+                className="bg-transparent text-xs text-slate-800 focus:outline-none"
               />
-              <span className="text-slate-500 text-xs">até</span>
+              <span className="text-slate-400 text-xs">até</span>
               <input
                 type="date"
                 value={dataFim}
                 onChange={(e) => setDataFim(e.target.value)}
-                className="bg-transparent text-xs text-slate-200 focus:outline-none"
+                className="bg-transparent text-xs text-slate-800 focus:outline-none"
               />
             </div>
             {(dataInicio || dataFim) && (
               <button
                 onClick={() => { setDataInicio(''); setDataFim(''); }}
-                className="p-2 rounded-xl text-slate-400 hover:text-indigo-400 bg-slate-900 border border-slate-800"
+                className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 bg-white border border-slate-300"
                 title="Limpar período"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -109,32 +109,32 @@ export const Relatorios: React.FC = () => {
 
         {/* Turnos KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+          <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-emerald-400" /> Turno Matutino (Manhã)
+              <span className="text-xs text-slate-600 font-medium flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-emerald-600" /> Turno Matutino (Manhã)
               </span>
-              <h4 className="text-xl font-black text-emerald-400 mt-1">{formatBrl(matutinoTotal)}</h4>
+              <h4 className="text-xl font-black text-emerald-600 mt-1">{formatBrl(matutinoTotal)}</h4>
               <p className="text-[10px] text-slate-500 mt-0.5">{turnosData?.matutino?.qtd || 0} lançamentos efetuados</p>
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+          <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200 flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                <Sun className="w-3.5 h-3.5 text-amber-400" /> Turno Vespertino (Tarde)
+              <span className="text-xs text-slate-600 font-medium flex items-center gap-1">
+                <Sun className="w-3.5 h-3.5 text-amber-600" /> Turno Vespertino (Tarde)
               </span>
-              <h4 className="text-xl font-black text-amber-400 mt-1">{formatBrl(vespertinoTotal)}</h4>
+              <h4 className="text-xl font-black text-amber-600 mt-1">{formatBrl(vespertinoTotal)}</h4>
               <p className="text-[10px] text-slate-500 mt-0.5">{turnosData?.vespertino?.qtd || 0} lançamentos efetuados</p>
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+          <div className="p-4 rounded-xl bg-indigo-50/60 border border-indigo-200 flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-400 font-medium">Resultado Comparativo</span>
-              <h4 className="text-xl font-black text-indigo-300 mt-1">{formatBrl(difTurnos)}</h4>
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                Variação: <strong className="text-amber-400">{maiorTurno}</strong> arrecadou mais no período
+              <span className="text-xs text-slate-600 font-medium">Resultado Comparativo</span>
+              <h4 className="text-xl font-black text-indigo-700 mt-1">{formatBrl(difTurnos)}</h4>
+              <p className="text-[10px] text-slate-600 mt-0.5">
+                Variação: <strong className="text-amber-700">{maiorTurno}</strong> arrecadou mais no período
               </p>
             </div>
           </div>
@@ -144,11 +144,11 @@ export const Relatorios: React.FC = () => {
         <div className="h-56 w-full pt-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} />
               <YAxis stroke="#64748b" fontSize={12} tickFormatter={(val) => `R$${val}`} tickLine={false} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff' }}
+                contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', borderRadius: '12px', color: '#0f172a', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                 formatter={(value: any) => formatBrl(value)}
               />
               <Bar dataKey="valor" radius={[8, 8, 0, 0]}>
@@ -163,33 +163,33 @@ export const Relatorios: React.FC = () => {
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-card p-6 rounded-2xl border-l-4 border-l-emerald-500">
-          <p className="text-xs font-semibold text-slate-400 uppercase">Total Bruto de Entradas</p>
-          <h3 className="text-2xl font-black text-emerald-400 mt-1">{formatBrl(totalBrutoEntradas)}</h3>
-          <p className="text-[11px] text-slate-400 mt-2">Soma de todas as receitas registradas</p>
+        <div className="glass-card p-6 rounded-2xl border-l-4 border-l-emerald-600">
+          <p className="text-xs font-semibold text-slate-500 uppercase">Total Bruto de Entradas</p>
+          <h3 className="text-2xl font-black text-emerald-600 mt-1">{formatBrl(totalBrutoEntradas)}</h3>
+          <p className="text-[11px] text-slate-500 mt-2">Soma de todas as receitas registradas</p>
         </div>
 
-        <div className="glass-card p-6 rounded-2xl border-l-4 border-l-rose-500">
-          <p className="text-xs font-semibold text-slate-400 uppercase">Total Bruto de Saídas</p>
-          <h3 className="text-2xl font-black text-rose-400 mt-1">{formatBrl(totalBrutoSaidas)}</h3>
-          <p className="text-[11px] text-slate-400 mt-2">Soma de todas as despesas registradas</p>
+        <div className="glass-card p-6 rounded-2xl border-l-4 border-l-rose-600">
+          <p className="text-xs font-semibold text-slate-500 uppercase">Total Bruto de Saídas</p>
+          <h3 className="text-2xl font-black text-rose-600 mt-1">{formatBrl(totalBrutoSaidas)}</h3>
+          <p className="text-[11px] text-slate-500 mt-2">Soma de todas as despesas registradas</p>
         </div>
 
-        <div className="glass-card p-6 rounded-2xl border-l-4 border-l-indigo-500">
-          <p className="text-xs font-semibold text-slate-400 uppercase">Resultado Líquido do Período</p>
-          <h3 className={`text-2xl font-black mt-1 ${saldoLiquido >= 0 ? 'text-indigo-400' : 'text-rose-400'}`}>
+        <div className="glass-card p-6 rounded-2xl border-l-4 border-l-indigo-600">
+          <p className="text-xs font-semibold text-slate-500 uppercase">Resultado Líquido do Período</p>
+          <h3 className={`text-2xl font-black mt-1 ${saldoLiquido >= 0 ? 'text-indigo-700' : 'text-rose-600'}`}>
             {formatBrl(saldoLiquido)}
           </h3>
-          <p className="text-[11px] text-slate-400 mt-2">Diferença entre Entradas e Saídas</p>
+          <p className="text-[11px] text-slate-500 mt-2">Diferença entre Entradas e Saídas</p>
         </div>
       </div>
 
       {/* Wallet Breakdown Table */}
       <div className="glass-card p-6 rounded-2xl space-y-4">
-        <h3 className="text-base font-bold text-white">Demonstrativo por Carteira</h3>
+        <h3 className="text-base font-bold text-slate-900">Demonstrativo por Carteira</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-900/90 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-800">
+            <thead className="bg-slate-100 text-slate-700 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-200">
               <tr>
                 <th className="py-3.5 px-4">Carteira</th>
                 <th className="py-3.5 px-4">Tipo</th>
@@ -198,17 +198,17 @@ export const Relatorios: React.FC = () => {
                 <th className="py-3.5 px-4 text-right">Saldo Atual</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+            <tbody className="divide-y divide-slate-200 text-slate-700">
               {carteiras.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-900/40 transition">
-                  <td className="py-3.5 px-4 font-bold text-white flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-indigo-400" />
+                <tr key={c.id} className="hover:bg-slate-50 transition">
+                  <td className="py-3.5 px-4 font-bold text-slate-900 flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-indigo-600" />
                     {c.nome}
                   </td>
-                  <td className="py-3.5 px-4 capitalize text-slate-400 font-medium">{c.tipo}</td>
-                  <td className="py-3.5 px-4 text-right font-semibold text-emerald-400">+{formatBrl(c.totalEntradas)}</td>
-                  <td className="py-3.5 px-4 text-right font-semibold text-rose-400">-{formatBrl(c.totalSaidas)}</td>
-                  <td className={`py-3.5 px-4 text-right font-black ${c.saldoAtual >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <td className="py-3.5 px-4 capitalize text-slate-600 font-medium">{c.tipo}</td>
+                  <td className="py-3.5 px-4 text-right font-semibold text-emerald-600">+{formatBrl(c.totalEntradas)}</td>
+                  <td className="py-3.5 px-4 text-right font-semibold text-rose-600">-{formatBrl(c.totalSaidas)}</td>
+                  <td className={`py-3.5 px-4 text-right font-black ${c.saldoAtual >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {formatBrl(c.saldoAtual)}
                   </td>
                 </tr>
