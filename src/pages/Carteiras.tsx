@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Wallet, Plus, Building2, SlidersHorizontal, AlertTriangle, CheckCircle2, X, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Wallet, Plus, Building2, SlidersHorizontal, AlertTriangle, CheckCircle2, X, ChevronDown, ChevronUp, Clock, Trash2, ArrowRightLeft } from 'lucide-react';
 import { api } from '../services/api';
 import { formatLocalDate } from '../utils/formatters';
 
@@ -18,8 +18,16 @@ export const Carteiras: React.FC = () => {
   const [ajusteObs, setAjusteObs] = useState('');
   const [savingAjuste, setSavingAjuste] = useState(false);
 
+  // Modal excluir carteira
+  const [deleteModal, setDeleteModal] = useState<{ carteira: any } | null>(null);
+  const [deleteStep, setDeleteStep] = useState<'check' | 'transfer' | 'confirm'>('check');
+  const [transferDestinoId, setTransferDestinoId] = useState('');
+  const [transferObs, setTransferObs] = useState('');
+  const [deleteSaving, setDeleteSaving] = useState(false);
+
   // Tabela de pendências expandida
   const [pendenciasExpand, setPendenciasExpand] = useState(true);
+
 
   const loadData = () => {
     Promise.all([api.getCarteiras(), api.getAjustesSaldo()]).then(([c, a]) => {
@@ -77,6 +85,44 @@ export const Carteiras: React.FC = () => {
 
   const handleResolver = async (id: number) => {
     await api.resolverAjusteSaldo(id);
+    loadData();
+  };
+
+  const handleOpenDelete = (carteira: any) => {
+    setDeleteStep(Math.abs(carteira.saldoAtual || 0) < 0.01 ? 'confirm' : 'check');
+    setTransferDestinoId('');
+    setTransferObs('');
+    setDeleteModal({ carteira });
+  };
+
+  const handleTransferAndDelete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deleteModal || !transferDestinoId) return;
+    setDeleteSaving(true);
+    const { carteira } = deleteModal;
+    const destino = carteiras.find((c) => c.id === parseInt(transferDestinoId));
+    if (destino && carteira.saldoAtual > 0) {
+      await api.transferirSaldo({
+        carteiraOrigemId: carteira.id,
+        carteiraOrigemNome: carteira.nome,
+        carteiraDestinoId: destino.id,
+        carteiraDestinoNome: destino.nome,
+        valor: carteira.saldoAtual,
+        observacao: transferObs || 'Transferência antes da exclusão da carteira',
+      });
+    }
+    await api.deleteCarteira(carteira.id);
+    setDeleteSaving(false);
+    setDeleteModal(null);
+    loadData();
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal) return;
+    setDeleteSaving(true);
+    await api.deleteCarteira(deleteModal.carteira.id);
+    setDeleteSaving(false);
+    setDeleteModal(null);
     loadData();
   };
 
@@ -185,14 +231,23 @@ export const Carteiras: React.FC = () => {
                   </div>
                 )}
 
-                {/* Botão Ajustar Saldo */}
-                <button
-                  onClick={() => handleOpenAjuste(c)}
-                  className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-slate-700 hover:text-indigo-700 transition cursor-pointer"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  Ajustar Saldo
-                </button>
+                {/* Ações da carteira */}
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={() => handleOpenAjuste(c)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-slate-700 hover:text-indigo-700 transition cursor-pointer"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    Ajustar Saldo
+                  </button>
+                  <button
+                    onClick={() => handleOpenDelete(c)}
+                    title="Excluir carteira"
+                    className="flex items-center justify-center px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-slate-500 hover:text-rose-700 transition cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -457,7 +512,196 @@ export const Carteiras: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Excluir Carteira */}
+      {deleteModal && (() => {
+        const { carteira } = deleteModal;
+        const saldo = carteira.saldoAtual || 0;
+        const outrasCarteiras = carteiras.filter((c) => c.id !== carteira.id);
+
+        // Step: confirm — saldo zerado, só confirmar exclusão
+        if (deleteStep === 'confirm') {
+          return (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white w-full max-w-sm p-6 rounded-2xl space-y-5 border border-slate-200 shadow-2xl text-slate-800 relative">
+                <button onClick={() => setDeleteModal(null)} className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition">
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Excluir Carteira</h3>
+                    <p className="text-xs text-slate-500">{carteira.nome}</p>
+                  </div>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Saldo zerado. Esta carteira pode ser excluída com segurança.
+                </div>
+                <p className="text-sm text-slate-600">
+                  Tem certeza que deseja excluir permanentemente a carteira <strong>{carteira.nome}</strong>? Esta ação não pode ser desfeita.
+                </p>
+                <div className="flex justify-end gap-3 pt-1 border-t border-slate-200">
+                  <button onClick={() => setDeleteModal(null)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleConfirmDelete}
+                    disabled={deleteSaving}
+                    className="px-5 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {deleteSaving ? 'Excluindo...' : 'Confirmar Exclusão'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Step: check — saldo não zerado, escolher como proceder
+        if (deleteStep === 'check') {
+          return (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white w-full max-w-sm p-6 rounded-2xl space-y-5 border border-slate-200 shadow-2xl text-slate-800 relative">
+                <button onClick={() => setDeleteModal(null)} className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition">
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Excluir Carteira</h3>
+                    <p className="text-xs text-slate-500">{carteira.nome}</p>
+                  </div>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>
+                    Esta carteira possui saldo de <strong>{formatBrl(saldo)}</strong>. Para excluí-la, é necessário primeiro transferir ou ajustar o saldo para zero.
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600">Como deseja prosseguir?</p>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setDeleteStep('transfer')}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 text-left transition cursor-pointer"
+                  >
+                    <ArrowRightLeft className="w-5 h-5 text-indigo-600 shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800">Transferir saldo para outra conta</p>
+                      <p className="text-[10px] text-slate-500">Cria lançamentos automáticos de saída/entrada e exclui a carteira.</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => { setDeleteModal(null); handleOpenAjuste(carteira); }}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 text-left transition cursor-pointer"
+                  >
+                    <SlidersHorizontal className="w-5 h-5 text-indigo-600 shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800">Ajustar saldo manualmente</p>
+                      <p className="text-[10px] text-slate-500">Registra diferença como pendência. Volte para excluir após o acerto.</p>
+                    </div>
+                  </button>
+                </div>
+                <div className="flex justify-end pt-1 border-t border-slate-200">
+                  <button onClick={() => setDeleteModal(null)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Step: transfer — escolher carteira destino
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md p-6 rounded-2xl space-y-5 border border-slate-200 shadow-2xl text-slate-800 relative">
+              <button onClick={() => setDeleteModal(null)} className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition">
+                <X className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                  <ArrowRightLeft className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Transferir & Excluir</h3>
+                  <p className="text-xs text-slate-500">{carteira.nome} → outra conta</p>
+                </div>
+              </div>
+
+              {/* Resumo */}
+              <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Carteira de origem:</span>
+                  <span className="font-semibold text-slate-800">{carteira.nome}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Saldo a transferir:</span>
+                  <span className="font-black text-emerald-700">{formatBrl(saldo)}</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleTransferAndDelete} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Conta de destino</label>
+                  {outrasCarteiras.length === 0 ? (
+                    <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+                      Não há outras carteiras cadastradas. Cadastre uma antes de prosseguir.
+                    </p>
+                  ) : (
+                    <select
+                      required
+                      value={transferDestinoId}
+                      onChange={(e) => setTransferDestinoId(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
+                    >
+                      <option value="">Selecionar carteira...</option>
+                      {outrasCarteiras.map((oc) => (
+                        <option key={oc.id} value={oc.id}>
+                          {oc.nome} — {formatBrl(oc.saldoAtual)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Observação <span className="text-slate-400 font-normal">(opcional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={transferObs}
+                    onChange={(e) => setTransferObs(e.target.value)}
+                    placeholder="Ex: Encerramento conta cantina..."
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-[10px] text-rose-800">
+                  ⚠️ O saldo será transferido e a carteira <strong>{carteira.nome}</strong> será <strong>excluída permanentemente</strong>.
+                </div>
+                <div className="flex justify-end gap-3 pt-1 border-t border-slate-200">
+                  <button type="button" onClick={() => setDeleteStep('check')} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">
+                    Voltar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={deleteSaving || !transferDestinoId || outrasCarteiras.length === 0}
+                    className="px-5 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                    {deleteSaving ? 'Processando...' : 'Transferir e Excluir'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
-

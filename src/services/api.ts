@@ -869,6 +869,45 @@ export const api = {
     setStorage('produtos', produtos);
   },
 
+  async deleteCarteira(id: number) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.deleteDocument('carteiras', id);
+      return;
+    }
+    const carteiras = getStorage('carteiras', []).filter((c: any) => c.id !== id);
+    setStorage('carteiras', carteiras);
+  },
+
+  async transferirSaldo(data: {
+    carteiraOrigemId: number;
+    carteiraOrigemNome: string;
+    carteiraDestinoId: number;
+    carteiraDestinoNome: string;
+    valor: number;
+    observacao?: string;
+  }) {
+    const hoje = new Date().toISOString().split('T')[0];
+    const descSaida = `Transferência para ${data.carteiraDestinoNome}${data.observacao ? ' — ' + data.observacao : ''}`;
+    const descEntrada = `Transferência de ${data.carteiraOrigemNome}${data.observacao ? ' — ' + data.observacao : ''}`;
+    await this.createSaida({
+      carteiraId: data.carteiraOrigemId,
+      valor: data.valor,
+      descricao: descSaida,
+      formaPagamento: 'transferencia',
+      data: hoje,
+      categoriaId: null,
+    });
+    await this.createEntrada({
+      carteiraId: data.carteiraDestinoId,
+      valor: data.valor,
+      descricao: descEntrada,
+      formaRecebimento: 'transferencia',
+      turno: 'Geral',
+      data: hoje,
+      categoriaId: null,
+    });
+  },
+
   async getAjustesSaldo() {
     if (firebaseApi.isConfigured()) {
       return await firebaseApi.getCollection('ajustesSaldo');
@@ -929,6 +968,7 @@ export const api = {
     let turmas: any[] = [];
     let alunos: any[] = [];
     let mensalidades: any[] = [];
+    let ajustesSaldo: any[] = [];
 
     if (firebaseApi.isConfigured()) {
       users = (await firebaseApi.getCollection('users')) as any[];
@@ -941,6 +981,7 @@ export const api = {
       turmas = (await firebaseApi.getCollection('turmas')) as any[];
       alunos = (await firebaseApi.getCollection('alunos')) as any[];
       mensalidades = (await firebaseApi.getCollection('mensalidades')) as any[];
+      ajustesSaldo = (await firebaseApi.getCollection('ajustesSaldo')) as any[];
     } else {
       users = getStorage('users', []);
       carteiras = getStorage('carteiras', []);
@@ -952,6 +993,7 @@ export const api = {
       turmas = getStorage('turmas', []);
       alunos = getStorage('alunos', []);
       mensalidades = getStorage('mensalidades', []);
+      ajustesSaldo = getStorage('ajustesSaldo', []);
     }
 
     const backupData = {
@@ -968,6 +1010,7 @@ export const api = {
         turmas,
         alunos,
         mensalidades,
+        ajustesSaldo,
       }
     };
     const jsonStr = JSON.stringify(backupData, null, 2);
@@ -996,6 +1039,7 @@ export const api = {
         if (t.turmas) for (const item of t.turmas) await firebaseApi.setDocument('turmas', item.id, item);
         if (t.alunos) for (const item of t.alunos) await firebaseApi.setDocument('alunos', item.id, item);
         if (t.mensalidades) for (const item of t.mensalidades) await firebaseApi.setDocument('mensalidades', item.id, item);
+        if (t.ajustesSaldo) for (const item of t.ajustesSaldo) await firebaseApi.setDocument('ajustesSaldo', item.id, item);
         return true;
       }
 
@@ -1009,6 +1053,7 @@ export const api = {
       if (data.tabelas.turmas) setStorage('turmas', data.tabelas.turmas);
       if (data.tabelas.alunos) setStorage('alunos', data.tabelas.alunos);
       if (data.tabelas.mensalidades) setStorage('mensalidades', data.tabelas.mensalidades);
+      if (data.tabelas.ajustesSaldo) setStorage('ajustesSaldo', data.tabelas.ajustesSaldo);
 
       return true;
     } catch (e: any) {
