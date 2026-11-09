@@ -17,7 +17,8 @@ import {
   Sparkles,
   Globe,
   ExternalLink,
-  Github
+  Github,
+  X
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -25,9 +26,18 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   currentUser: any;
   onLogout: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ 
+  activeTab, 
+  setActiveTab, 
+  currentUser, 
+  onLogout,
+  isOpen = false,
+  onClose 
+}) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
     { id: 'natal', label: 'Natal Luz 🎄', icon: Sparkles, badge: 'Festa' },
@@ -45,31 +55,60 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, curre
   ];
 
   return (
-    <aside className="w-64 bg-slate-900/90 border-r border-slate-800 flex flex-col justify-between select-none">
-      <div>
-        {/* Brand Header */}
-        <div className="p-5 flex items-center gap-3 border-b border-slate-800/80">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <School className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="font-extrabold text-lg text-white tracking-tight flex items-center gap-1.5">
-              Contábil<span className="text-indigo-400">CEPR</span>
-            </h1>
-            <p className="text-xs text-slate-400 font-medium">Gestão Financeira Escolar</p>
-          </div>
-        </div>
+    <>
+      {/* Backdrop para fechar a barra lateral no celular */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-40 md:hidden transition-opacity duration-200"
+          aria-hidden="true"
+        />
+      )}
 
-        {/* Navigation Items */}
-        <nav className="p-3 space-y-1 mt-2 overflow-y-auto max-h-[calc(100vh-160px)]">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all duration-150 ${
+      <aside
+        className={`fixed md:static inset-y-0 left-0 z-50 w-72 md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between select-none shadow-2xl md:shadow-none transition-transform duration-300 ease-in-out shrink-0 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        <div>
+          {/* Brand Header */}
+          <div className="p-4 sm:p-5 flex items-center justify-between border-b border-slate-800/80">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <School className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="font-extrabold text-lg text-white tracking-tight flex items-center gap-1.5">
+                  Contábil<span className="text-indigo-400">CEPR</span>
+                </h1>
+                <p className="text-xs text-slate-400 font-medium">Gestão Financeira Escolar</p>
+              </div>
+            </div>
+
+            {/* Botão de Fechar no Celular */}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 md:hidden cursor-pointer"
+              title="Fechar menu"
+              aria-label="Fechar menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Navigation Items */}
+          <nav className="p-3 space-y-1 mt-2 overflow-y-auto max-h-[calc(100vh-210px)]">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    if (onClose) onClose();
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all duration-150 ${
                   isActive
                     ? 'bg-indigo-600/90 text-white shadow-md shadow-indigo-600/20 font-semibold'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -155,5 +194,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, curre
         </div>
       </div>
     </aside>
+    </>
   );
 };

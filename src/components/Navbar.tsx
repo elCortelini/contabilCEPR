@@ -1,13 +1,14 @@
 import React from 'react';
-import { Download, RefreshCw, Calendar, Search, CheckCircle2 } from 'lucide-react';
+import { Download, RefreshCw, Calendar, Search, CheckCircle2, Menu } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: string;
   onReimport: () => void;
   isReimporting: boolean;
+  onToggleSidebar?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, onReimport, isReimporting }) => {
+export const Navbar: React.FC<NavbarProps> = ({ activeTab, onReimport, isReimporting, onToggleSidebar }) => {
   const titles: Record<string, string> = {
     dashboard: 'Visão Geral & Indicadores',
     natal: 'Vendas & Comandas — Natal Luz 🎄',
@@ -17,6 +18,11 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onReimport, isReimpor
     fornecedores: 'Fornecedores & Contas a Pagar',
     produtos: 'Produtos, Estoque & Margem de Lucro',
     relatorios: 'Relatórios Consolidados & Exportação CSV',
+    alunos: 'Alunos & Mensalidades',
+    categorias: 'Categorias Contábeis',
+    firebase: 'Banco Online Firebase',
+    backup: 'Backup & Restauração',
+    usuarios: 'Controle de Acessos',
   };
 
   const handleExportCsv = () => {
@@ -24,14 +30,26 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onReimport, isReimpor
   };
 
   return (
-    <header className="h-16 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between shadow-md sticky top-0 z-20 text-white">
-      <div>
-        <h2 className="text-lg font-bold text-white tracking-tight">
-          {titles[activeTab] || 'Gestão Financeira Escolar'}
-        </h2>
-        <p className="text-xs text-slate-300 font-normal">
-          Colegio Educacional • Ano Letivo 2026
-        </p>
+    <header className="h-16 bg-slate-900 border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between shadow-md sticky top-0 z-20 text-white">
+      <div className="flex items-center gap-3">
+        {/* Botão Hambúrguer Mobile */}
+        <button
+          onClick={onToggleSidebar}
+          className="p-2 -ml-1 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 md:hidden flex items-center justify-center cursor-pointer transition"
+          title="Abrir menu de navegação"
+          aria-label="Abrir menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <div>
+          <h2 className="text-base sm:text-lg font-bold text-white tracking-tight truncate max-w-[200px] sm:max-w-none">
+            {titles[activeTab] || 'Gestão Financeira Escolar'}
+          </h2>
+          <p className="text-[11px] sm:text-xs text-slate-400 font-normal hidden xs:block">
+            Colégio Educacional • Ano Letivo 2026
+          </p>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">

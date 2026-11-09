@@ -27,8 +27,11 @@ export default function App() {
     }
   });
 
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+    setMobileSidebarOpen(false);
     try {
       const url = new URL(window.location.href);
       url.searchParams.set('tab', tab);
@@ -112,12 +115,24 @@ export default function App() {
         </div>
       )}
 
-      {/* Sidebar */}
-      <Sidebar activeTab={activeTab} setActiveTab={handleTabChange} currentUser={currentUser} onLogout={handleLogout} />
+      {/* Sidebar (oculta por padrão no celular, gaveta deslizante) */}
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={handleTabChange} 
+        currentUser={currentUser} 
+        onLogout={handleLogout} 
+        isOpen={mobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Navbar activeTab={activeTab} onReimport={handleReimport} isReimporting={isReimporting} />
+        <Navbar 
+          activeTab={activeTab} 
+          onReimport={handleReimport} 
+          isReimporting={isReimporting} 
+          onToggleSidebar={() => setMobileSidebarOpen((prev) => !prev)}
+        />
 
         <main className="flex-1 overflow-y-auto">
           {activeTab === 'dashboard' && <Dashboard />}
