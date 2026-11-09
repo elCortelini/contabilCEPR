@@ -10,6 +10,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, onReimport, isReimporting }) => {
   const titles: Record<string, string> = {
     dashboard: 'Visão Geral & Indicadores',
+    natal: 'Vendas & Comandas — Natal Luz 🎄',
     carteiras: 'Gerenciamento de Carteiras & Saldos',
     entradas: 'Receitas & Entradas Financeiras',
     saidas: 'Despesas & Saídas Financeiras',

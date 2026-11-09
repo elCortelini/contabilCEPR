@@ -4,3 +4,6 @@ dist/
 temp_zip/
 .env
 *.log
+*.sqlite-shm
+*.sqlite-wal
+contabilCEPR

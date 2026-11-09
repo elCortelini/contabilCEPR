@@ -776,4 +776,175 @@ router.get('/relatorios/export-csv', (req, res) => {
   }
 });
 
+// ==========================================
+// MÓDULO NATAL LUZ - VENDAS & COMANDAS
+// ==========================================
+
+// Listar todas as comandas
+router.get('/natal/comandas', (req, res) => {
+  try {
+    const comandas = db.prepare('SELECT * FROM comandas_natal ORDER BY id DESC').all();
+    const parsed = (comandas as any[]).map(c => ({
+      ...c,
+      itens: JSON.parse(c.itensJson || '[]'),
+      ticketEntregue: Boolean(c.ticketEntregue)
+    }));
+    res.json(parsed);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Criar nova comanda
+router.post('/natal/comandas', (req, res) => {
+  try {
+    const {
+      estudante,
+      turma,
+      professor,
+      responsavel,
+      telefone,
+      itens,
+      total,
+      formaPagamento,
+      ticketEntregue,
+      pixPayload
+    } = req.body;
+
+    const agora = new Date().toISOString();
+    const stmt = db.prepare(`
+      INSERT INTO comandas_natal (
+        estudante, turma, professor, responsavel, telefone,
+        itensJson, total, formaPagamento, ticketEntregue,
+        pixPayload, criadaEm, atualizadaEm
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const result = stmt.run(
+      estudante || '',
+      turma || '',
+      professor || '',
+      responsavel || '',
+      telefone || '',
+      JSON.stringify(itens || []),
+      parseFloat(total) || 0,
+      formaPagamento || 'pix',
+      ticketEntregue ? 1 : 0,
+      pixPayload || '',
+      agora,
+      agora
+    );
+
+    res.json({
+      id: result.lastInsertRowid,
+      message: 'Comanda registrada com sucesso!',
+      comanda: {
+        id: result.lastInsertRowid,
+        estudante,
+        turma,
+        professor,
+        responsavel,
+        telefone,
+        itens,
+        total: parseFloat(total) || 0,
+        formaPagamento,
+        ticketEntregue: Boolean(ticketEntregue),
+        pixPayload,
+        criadaEm: agora
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Atualizar status do ticket entregue (Sim ou Não)
+router.patch('/natal/comandas/:id/ticket', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ticketEntregue } = req.body;
+    const agora = new Date().toISOString();
+
+    db.prepare(`
+      UPDATE comandas_natal
+      SET ticketEntregue = ?, atualizadaEm = ?
+      WHERE id = ?
+    `).run(ticketEntregue ? 1 : 0, agora, id);
+
+    res.json({ success: true, id, ticketEntregue: Boolean(ticketEntregue) });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Excluir comanda
+router.delete('/natal/comandas/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    db.prepare('DELETE FROM comandas_natal WHERE id = ?').run(id);
+    res.json({ success: true, message: 'Comanda excluída com sucesso!' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Relatório / Resumo de produção da cozinha e financeiro
+router.get('/natal/resumo', (req, res) => {
+  try {
+    const comandas = db.prepare('SELECT * FROM comandas_natal').all() as any[];
+    
+    let faturamentoTotal = 0;
+    let totalPix = 0;
+    let totalDinheiro = 0;
+    let ticketsEntregues = 0;
+    let ticketsPendentes = 0;
+
+    const produtosContagem: Record<string, { nome: string; quantidade: number; valorTotal: number }> = {};
+
+    for (const c of comandas) {
+      const val = parseFloat(c.total) || 0;
+      faturamentoTotal += val;
+      if (c.formaPagamento === 'dinheiro') {
+        totalDinheiro += val;
+      } else {
+        totalPix += val;
+      }
+
+      if (c.ticketEntregue) {
+        ticketsEntregues++;
+      } else {
+        ticketsPendentes++;
+      }
+
+      try {
+        const itens = JSON.parse(c.itensJson || '[]');
+        for (const item of itens) {
+          const nome = item.nome || 'Item';
+          const qtd = parseInt(item.quantidade) || 0;
+          const subtotal = parseFloat(item.subtotal) || 0;
+          if (!produtosContagem[nome]) {
+            produtosContagem[nome] = { nome, quantidade: 0, valorTotal: 0 };
+          }
+          produtosContagem[nome].quantidade += qtd;
+          produtosContagem[nome].valorTotal += subtotal;
+        }
+      } catch (e) {
+        // Ignora erro de parse em item corrompido
+      }
+    }
+
+    res.json({
+      totalComandas: comandas.length,
+      faturamentoTotal,
+      totalPix,
+      totalDinheiro,
+      ticketsEntregues,
+      ticketsPendentes,
+      produtos: Object.values(produtosContagem)
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

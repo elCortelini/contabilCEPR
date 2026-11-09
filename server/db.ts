@@ -1,12 +1,37 @@
-import Database from 'better-sqlite3';
 import path from 'path';
 
 const dbPath = path.resolve(process.cwd(), 'database.sqlite');
-const db = new Database(dbPath);
 
-// Enable WAL mode for performance
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = OFF');
+let db: any;
+
+try {
+  const { default: Database } = await import('better-sqlite3');
+  db = new Database(dbPath);
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = OFF');
+} catch (betterSqliteErr) {
+  // Fallback nativo: Node 22/24 built-in node:sqlite
+  const { DatabaseSync } = await import('node:sqlite');
+  db = new DatabaseSync(dbPath);
+  db.pragma = function (sql: string) {
+    db.exec(`PRAGMA ${sql}`);
+  };
+  db.transaction = function (fn: (...args: any[]) => any) {
+    return function (...args: any[]) {
+      db.exec('BEGIN');
+      try {
+        const result = fn(...args);
+        db.exec('COMMIT');
+        return result;
+      } catch (e) {
+        db.exec('ROLLBACK');
+        throw e;
+      }
+    };
+  };
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = OFF');
+}
 
 export function initDb() {
   db.exec(`
@@ -126,6 +151,22 @@ export function initDb() {
       entradaId INTEGER,
       FOREIGN KEY (alunoId) REFERENCES alunos (id)
     );
+
+    CREATE TABLE IF NOT EXISTS comandas_natal (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      estudante TEXT NOT NULL,
+      turma TEXT,
+      professor TEXT,
+      responsavel TEXT NOT NULL,
+      telefone TEXT NOT NULL,
+      itensJson TEXT NOT NULL,
+      total REAL NOT NULL,
+      formaPagamento TEXT NOT NULL DEFAULT 'pix',
+      ticketEntregue INTEGER DEFAULT 0,
+      pixPayload TEXT,
+      criadaEm TEXT,
+      atualizadaEm TEXT
+    );
   `);
 
   // Safely add turno column if missing in existing database
@@ -138,6 +179,18 @@ export function initDb() {
     }
   } catch (e) {
     console.error("Erro ao verificar coluna turno:", e);
+  }
+
+  // Safely add status column to users if missing in existing database
+  try {
+    const userInfo = db.prepare("PRAGMA table_info(users)").all() as any[];
+    const hasStatus = userInfo.some(c => c.name === 'status');
+    if (!hasStatus) {
+      db.exec("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'approved'");
+      console.log("✅ Coluna 'status' adicionada à tabela users.");
+    }
+  } catch (e) {
+    console.error("Erro ao verificar coluna status na tabela users:", e);
   }
 }
 

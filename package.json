@@ -8,7 +8,8 @@
     "dev": "tsx watch server/index.ts",
     "build": "tsc && vite build",
     "start": "node dist/server/index.js",
-    "import": "tsx server/import-data.ts"
+    "import": "tsx server/import-data.ts",
+    "test": "tsx test/api-sanity.test.ts"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",

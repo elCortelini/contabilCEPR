@@ -14,9 +14,17 @@ import { Categorias } from './pages/Categorias';
 import { BackupCenter } from './pages/BackupCenter';
 import { FirebaseConfig } from './pages/FirebaseConfig';
 import { Login } from './pages/Login';
+import { NatalLuz } from './pages/NatalLuz';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('tab') || 'dashboard';
+    } catch {
+      return 'dashboard';
+    }
+  });
   const [currentUser, setCurrentUser] = useState<any>(() => {
     try {
       const saved = localStorage.getItem('cepr_current_user');
@@ -86,6 +94,7 @@ export default function App() {
 
         <main className="flex-1 overflow-y-auto">
           {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'natal' && <NatalLuz />}
           {activeTab === 'carteiras' && <Carteiras />}
           {activeTab === 'entradas' && <Entradas />}
           {activeTab === 'saidas' && <Saidas />}

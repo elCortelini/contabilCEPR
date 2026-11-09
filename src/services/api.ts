@@ -1060,5 +1060,150 @@ export const api = {
       console.error(e);
       return false;
     }
+  },
+
+  // ==========================================
+  // MÓDULO NATAL LUZ (COMANDAS & VENDAS)
+  // ==========================================
+
+  async getNatalComandas() {
+    if (firebaseApi.isConfigured()) {
+      const docs = await firebaseApi.getCollection('comandas_natal');
+      return (docs as any[]).sort((a, b) => (b.id || 0) - (a.id || 0));
+    }
+    if (!IS_STATIC) {
+      try {
+        const res = await fetch('/api/natal/comandas');
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Fallback para armazenamento local em comandas natal:', e);
+      }
+    }
+    return getStorage('comandas_natal', []);
+  },
+
+  async createNatalComanda(comanda: any) {
+    if (firebaseApi.isConfigured()) {
+      const id = Date.now();
+      const payload = { ...comanda, id, criadaEm: new Date().toISOString() };
+      await firebaseApi.setDocument('comandas_natal', id, payload);
+      return { success: true, id, comanda: payload };
+    }
+    if (!IS_STATIC) {
+      try {
+        const res = await fetch('/api/natal/comandas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(comanda)
+        });
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Fallback para armazenamento local em criação de comanda natal:', e);
+      }
+    }
+    const current = getStorage('comandas_natal', []);
+    const id = Date.now();
+    const newComanda = {
+      ...comanda,
+      id,
+      ticketEntregue: Boolean(comanda.ticketEntregue),
+      criadaEm: new Date().toISOString()
+    };
+    current.unshift(newComanda);
+    setStorage('comandas_natal', current);
+    return { success: true, id, comanda: newComanda };
+  },
+
+  async updateNatalTicket(id: number, ticketEntregue: boolean) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.updateDocument('comandas_natal', id, { ticketEntregue: Boolean(ticketEntregue) });
+      return { success: true, id, ticketEntregue };
+    }
+    if (!IS_STATIC) {
+      try {
+        const res = await fetch(`/api/natal/comandas/${id}/ticket`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketEntregue })
+        });
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Fallback local para atualização de ticket:', e);
+      }
+    }
+    const current = getStorage('comandas_natal', []);
+    const updated = current.map((c: any) =>
+      Number(c.id) === Number(id) ? { ...c, ticketEntregue: Boolean(ticketEntregue) } : c
+    );
+    setStorage('comandas_natal', updated);
+    return { success: true, id, ticketEntregue };
+  },
+
+  async deleteNatalComanda(id: number) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.deleteDocument('comandas_natal', id);
+      return { success: true };
+    }
+    if (!IS_STATIC) {
+      try {
+        const res = await fetch(`/api/natal/comandas/${id}`, { method: 'DELETE' });
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Fallback local para exclusão de comanda:', e);
+      }
+    }
+    const current = getStorage('comandas_natal', []);
+    const filtered = current.filter((c: any) => Number(c.id) !== Number(id));
+    setStorage('comandas_natal', filtered);
+    return { success: true };
+  },
+
+  async getNatalResumo() {
+    const comandas = await this.getNatalComandas();
+    let faturamentoTotal = 0;
+    let totalPix = 0;
+    let totalDinheiro = 0;
+    let ticketsEntregues = 0;
+    let ticketsPendentes = 0;
+
+    const produtosContagem: Record<string, { nome: string; quantidade: number; valorTotal: number }> = {};
+
+    for (const c of comandas) {
+      const val = parseFloat(c.total) || 0;
+      faturamentoTotal += val;
+      if (c.formaPagamento === 'dinheiro') {
+        totalDinheiro += val;
+      } else {
+        totalPix += val;
+      }
+
+      if (c.ticketEntregue) {
+        ticketsEntregues++;
+      } else {
+        ticketsPendentes++;
+      }
+
+      const itens = Array.isArray(c.itens) ? c.itens : [];
+      for (const item of itens) {
+        const nome = item.nome || 'Item';
+        const qtd = parseInt(item.quantidade) || 0;
+        const subtotal = parseFloat(item.subtotal) || 0;
+        if (!produtosContagem[nome]) {
+          produtosContagem[nome] = { nome, quantidade: 0, valorTotal: 0 };
+        }
+        produtosContagem[nome].quantidade += qtd;
+        produtosContagem[nome].valorTotal += subtotal;
+      }
+    }
+
+    return {
+      totalComandas: comandas.length,
+      faturamentoTotal,
+      totalPix,
+      totalDinheiro,
+      ticketsEntregues,
+      ticketsPendentes,
+      produtos: Object.values(produtosContagem)
+    };
   }
 };

@@ -13,7 +13,11 @@ import {
   GraduationCap,
   Tag,
   Database,
-  Cloud
+  Cloud,
+  Sparkles,
+  Globe,
+  ExternalLink,
+  Github
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -26,6 +30,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
+    { id: 'natal', label: 'Natal Luz 🎄', icon: Sparkles, badge: 'Festa' },
     { id: 'carteiras', label: 'Carteiras', icon: Wallet, badge: '4' },
     { id: 'entradas', label: 'Entradas (Receitas)', icon: TrendingUp, badge: '99' },
     { id: 'saidas', label: 'Saídas (Despesas)', icon: TrendingDown, badge: '55' },
@@ -91,6 +96,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, curre
             );
           })}
         </nav>
+      </div>
+
+      {/* Atalho de Acesso Online & GitHub */}
+      <div className="px-3 py-2 space-y-1.5 border-t border-slate-800/60 bg-slate-950/20">
+        <a
+          href="https://elcortelini.github.io/contabilCEPR/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/30 hover:border-indigo-400/60 text-indigo-300 hover:text-white transition group text-xs font-semibold shadow-sm"
+          title="Abrir versão online no GitHub Pages"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Globe className="w-4 h-4 text-indigo-400 shrink-0 group-hover:scale-110 transition" />
+            <span className="truncate">Acesso Online (Nuvem)</span>
+          </div>
+          <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-200 shrink-0 transition" />
+        </a>
+
+        <a
+          href="https://github.com/elCortelini/contabilCEPR"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 transition text-[11px] font-medium"
+          title="Ver código-fonte no GitHub"
+        >
+          <div className="flex items-center gap-2">
+            <Github className="w-3.5 h-3.5 text-slate-400" />
+            <span>Repositório GitHub</span>
+          </div>
+          <ExternalLink className="w-3 h-3 text-slate-500" />
+        </a>
       </div>
 
       {/* Footer User Info & Logout */}

@@ -28,7 +28,12 @@ if (fs.existsSync(clientDist)) {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor Contábil CEPR rodando na porta ${PORT}`);
-  console.log(`📊 API disponível em http://localhost:${PORT}/api/dashboard`);
-});
+export { app };
+export default app;
+
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Servidor Contábil CEPR rodando na porta ${PORT}`);
+    console.log(`📊 API disponível em http://localhost:${PORT}/api/dashboard`);
+  });
+}
