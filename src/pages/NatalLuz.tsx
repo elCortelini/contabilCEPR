@@ -20,7 +20,8 @@ import {
   ChevronRight,
   Printer,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Share2
 } from 'lucide-react';
 import { api } from '../services/api';
 import { 
@@ -66,7 +67,16 @@ export const NatalLuz: React.FC = () => {
   const [modalSucesso, setModalSucesso] = useState<any | null>(null);
   const [copiadoPix, setCopiadoPix] = useState(false);
   const [copiadoTexto, setCopiadoTexto] = useState(false);
+  const [copiadoLink, setCopiadoLink] = useState(false);
   const [mostrarQrCodeModal, setMostrarQrCodeModal] = useState(false);
+
+  const handleCopiarLinkExclusivo = () => {
+    const baseUrl = window.location.origin + window.location.pathname;
+    const urlExclusiva = `${baseUrl}?tab=natal&direct=1`;
+    navigator.clipboard.writeText(urlExclusiva);
+    setCopiadoLink(true);
+    setTimeout(() => setCopiadoLink(false), 2500);
+  };
 
   // Resumo da Cozinha
   const [resumoCozinha, setResumoCozinha] = useState<any>(null);
@@ -368,9 +378,19 @@ export const NatalLuz: React.FC = () => {
         <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-center sm:text-left">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-bold tracking-wide uppercase mb-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-              CE PEDRO RIZZI
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1.5">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-bold tracking-wide uppercase">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                CE PEDRO RIZZI
+              </div>
+              <button
+                onClick={handleCopiarLinkExclusivo}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 text-xs font-bold transition cursor-pointer shadow-sm active:scale-95"
+                title="Copiar link exclusivo do Natal Luz para enviar à administradora"
+              >
+                {copiadoLink ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Share2 className="w-3.5 h-3.5 text-emerald-300" />}
+                <span>{copiadoLink ? 'Link Copiado!' : 'Compartilhar Link'}</span>
+              </button>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center justify-center sm:justify-start gap-2">
               <span>✨ NATAL LUZ 🎅</span>

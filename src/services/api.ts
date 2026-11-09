@@ -1,5 +1,6 @@
 import initialData from '../../dados_financeiros_completos.json';
 import { firebaseApi } from './firebaseApi';
+import { MOCK_COMANDAS_NATAL } from '../data/mockComandasNatal';
 
 const IS_STATIC = typeof window !== 'undefined' && !window.location.host.includes('localhost:3000') && !window.location.host.includes('localhost:5000');
 
@@ -1079,7 +1080,12 @@ export const api = {
         console.warn('Fallback para armazenamento local em comandas natal:', e);
       }
     }
-    return getStorage('comandas_natal', []);
+    const stored = getStorage('comandas_natal', null);
+    if (!stored || stored.length === 0) {
+      setStorage('comandas_natal', MOCK_COMANDAS_NATAL);
+      return MOCK_COMANDAS_NATAL;
+    }
+    return stored;
   },
 
   async createNatalComanda(comanda: any) {

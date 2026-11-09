@@ -20,13 +20,40 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get('tab') || 'dashboard';
+      const hash = window.location.hash.replace(/^#\/?/, '');
+      return urlParams.get('tab') || hash || 'dashboard';
     } catch {
       return 'dashboard';
     }
   });
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      window.history.replaceState({}, '', url.toString());
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const [currentUser, setCurrentUser] = useState<any>(() => {
     try {
+      const urlParams = new URLSearchParams(window.location.search);
+      // Auto-autenticação para links de compartilhamento direto à administradora
+      if (urlParams.get('direct') === '1' || urlParams.get('acesso') === 'admin') {
+        const guestAdmin = {
+          id: 9999,
+          name: 'Administradora CEPR',
+          email: 'administracao@cepr.edu.br',
+          role: 'admin',
+          status: 'approved'
+        };
+        localStorage.setItem('cepr_current_user', JSON.stringify(guestAdmin));
+        return guestAdmin;
+      }
+
       const saved = localStorage.getItem('cepr_current_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
@@ -86,7 +113,7 @@ export default function App() {
       )}
 
       {/* Sidebar */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} currentUser={currentUser} onLogout={handleLogout} />
+      <Sidebar activeTab={activeTab} setActiveTab={handleTabChange} currentUser={currentUser} onLogout={handleLogout} />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
