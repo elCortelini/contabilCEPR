@@ -2,7 +2,7 @@
   "turmas": [
     {
       "codigo": "101",
-      "nome": "1º Ano - Turma 101 (Matutino)",
+      "nome": "101",
       "ano": "1º Ano",
       "turno": "Matutino",
       "totalAlunos": 29,
@@ -127,7 +127,7 @@
     },
     {
       "codigo": "102",
-      "nome": "1º Ano - Turma 102 (Matutino)",
+      "nome": "102",
       "ano": "1º Ano",
       "turno": "Matutino",
       "totalAlunos": 28,
@@ -248,7 +248,7 @@
     },
     {
       "codigo": "103",
-      "nome": "1º Ano - Turma 103 (Matutino)",
+      "nome": "103",
       "ano": "1º Ano",
       "turno": "Matutino",
       "totalAlunos": 30,
@@ -377,7 +377,7 @@
     },
     {
       "codigo": "104",
-      "nome": "1º Ano - Turma 104 (Vespertino)",
+      "nome": "104",
       "ano": "1º Ano",
       "turno": "Vespertino",
       "totalAlunos": 30,
@@ -506,7 +506,7 @@
     },
     {
       "codigo": "105",
-      "nome": "1º Ano - Turma 105 (Vespertino)",
+      "nome": "105",
       "ano": "1º Ano",
       "turno": "Vespertino",
       "totalAlunos": 30,
@@ -635,7 +635,7 @@
     },
     {
       "codigo": "106",
-      "nome": "1º Ano - Turma 106 (Vespertino)",
+      "nome": "106",
       "ano": "1º Ano",
       "turno": "Vespertino",
       "totalAlunos": 30,
@@ -764,7 +764,7 @@
     },
     {
       "codigo": "201",
-      "nome": "2º Ano - Turma 201 (Matutino)",
+      "nome": "201",
       "ano": "2º Ano",
       "turno": "Matutino",
       "totalAlunos": 35,
@@ -913,7 +913,7 @@
     },
     {
       "codigo": "202",
-      "nome": "2º Ano - Turma 202 (Matutino)",
+      "nome": "202",
       "ano": "2º Ano",
       "turno": "Matutino",
       "totalAlunos": 33,
@@ -1054,7 +1054,7 @@
     },
     {
       "codigo": "203",
-      "nome": "2º Ano - Turma 203 (Vespertino)",
+      "nome": "203",
       "ano": "2º Ano",
       "turno": "Vespertino",
       "totalAlunos": 35,
@@ -1203,7 +1203,7 @@
     },
     {
       "codigo": "204",
-      "nome": "2º Ano - Turma 204 (Vespertino)",
+      "nome": "204",
       "ano": "2º Ano",
       "turno": "Vespertino",
       "totalAlunos": 35,
@@ -1352,7 +1352,7 @@
     },
     {
       "codigo": "301",
-      "nome": "3º Ano - Turma 301 (Matutino)",
+      "nome": "301",
       "ano": "3º Ano",
       "turno": "Matutino",
       "totalAlunos": 27,
@@ -1469,7 +1469,7 @@
     },
     {
       "codigo": "302",
-      "nome": "3º Ano - Turma 302 (Matutino)",
+      "nome": "302",
       "ano": "3º Ano",
       "turno": "Matutino",
       "totalAlunos": 27,
@@ -1586,7 +1586,7 @@
     },
     {
       "codigo": "303",
-      "nome": "3º Ano - Turma 303 (Matutino)",
+      "nome": "303",
       "ano": "3º Ano",
       "turno": "Matutino",
       "totalAlunos": 26,
@@ -1699,7 +1699,7 @@
     },
     {
       "codigo": "304",
-      "nome": "3º Ano - Turma 304 (Vespertino)",
+      "nome": "304",
       "ano": "3º Ano",
       "turno": "Vespertino",
       "totalAlunos": 35,
@@ -1848,7 +1848,7 @@
     },
     {
       "codigo": "305",
-      "nome": "3º Ano - Turma 305 (Vespertino)",
+      "nome": "305",
       "ano": "3º Ano",
       "turno": "Vespertino",
       "totalAlunos": 34,
@@ -1993,7 +1993,7 @@
     },
     {
       "codigo": "306",
-      "nome": "3º Ano - Turma 306 (Vespertino)",
+      "nome": "306",
       "ano": "3º Ano",
       "turno": "Vespertino",
       "totalAlunos": 34,
@@ -2138,7 +2138,7 @@
     },
     {
       "codigo": "401",
-      "nome": "4º Ano - Turma 401 (Matutino)",
+      "nome": "401",
       "ano": "4º Ano",
       "turno": "Matutino",
       "totalAlunos": 32,
@@ -2275,7 +2275,7 @@
     },
     {
       "codigo": "402",
-      "nome": "4º Ano - Turma 402 (Matutino)",
+      "nome": "402",
       "ano": "4º Ano",
       "turno": "Matutino",
       "totalAlunos": 34,
@@ -2420,7 +2420,7 @@
     },
     {
       "codigo": "403",
-      "nome": "4º Ano - Turma 403 (Vespertino)",
+      "nome": "403",
       "ano": "4º Ano",
       "turno": "Vespertino",
       "totalAlunos": 33,
@@ -2561,7 +2561,7 @@
     },
     {
       "codigo": "404",
-      "nome": "4º Ano - Turma 404 (Vespertino)",
+      "nome": "404",
       "ano": "4º Ano",
       "turno": "Vespertino",
       "totalAlunos": 34,
@@ -2706,7 +2706,7 @@
     },
     {
       "codigo": "405",
-      "nome": "4º Ano - Turma 405 (Vespertino)",
+      "nome": "405",
       "ano": "4º Ano",
       "turno": "Vespertino",
       "totalAlunos": 34,
@@ -2851,7 +2851,7 @@
     },
     {
       "codigo": "501",
-      "nome": "5º Ano - Turma 501 (Matutino)",
+      "nome": "501",
       "ano": "5º Ano",
       "turno": "Matutino",
       "totalAlunos": 35,
@@ -3000,7 +3000,7 @@
     },
     {
       "codigo": "502",
-      "nome": "5º Ano - Turma 502 (Matutino)",
+      "nome": "502",
       "ano": "5º Ano",
       "turno": "Matutino",
       "totalAlunos": 35,
@@ -3149,7 +3149,7 @@
     },
     {
       "codigo": "503",
-      "nome": "5º Ano - Turma 503 (Vespertino)",
+      "nome": "503",
       "ano": "5º Ano",
       "turno": "Vespertino",
       "totalAlunos": 35,
@@ -3298,7 +3298,7 @@
     },
     {
       "codigo": "504",
-      "nome": "5º Ano - Turma 504 (Vespertino)",
+      "nome": "504",
       "ano": "5º Ano",
       "turno": "Vespertino",
       "totalAlunos": 35,
@@ -3447,7 +3447,7 @@
     },
     {
       "codigo": "601",
-      "nome": "6º Ano - Turma 601 (Matutino)",
+      "nome": "601",
       "ano": "6º Ano",
       "turno": "Matutino",
       "totalAlunos": 36,
@@ -3600,7 +3600,7 @@
     },
     {
       "codigo": "602",
-      "nome": "6º Ano - Turma 602 (Matutino)",
+      "nome": "602",
       "ano": "6º Ano",
       "turno": "Matutino",
       "totalAlunos": 36,
@@ -3753,7 +3753,7 @@
     },
     {
       "codigo": "603",
-      "nome": "6º Ano - Turma 603 (Vespertino)",
+      "nome": "603",
       "ano": "6º Ano",
       "turno": "Vespertino",
       "totalAlunos": 34,
@@ -3898,7 +3898,7 @@
     },
     {
       "codigo": "604",
-      "nome": "6º Ano - Turma 604 (Vespertino)",
+      "nome": "604",
       "ano": "6º Ano",
       "turno": "Vespertino",
       "totalAlunos": 34,
@@ -4043,7 +4043,7 @@
     },
     {
       "codigo": "701",
-      "nome": "7º Ano - Turma 701 (Matutino)",
+      "nome": "701",
       "ano": "7º Ano",
       "turno": "Matutino",
       "totalAlunos": 36,
@@ -4196,7 +4196,7 @@
     },
     {
       "codigo": "702",
-      "nome": "7º Ano - Turma 702 (Matutino)",
+      "nome": "702",
       "ano": "7º Ano",
       "turno": "Matutino",
       "totalAlunos": 37,
@@ -4353,7 +4353,7 @@
     },
     {
       "codigo": "703",
-      "nome": "7º Ano - Turma 703 (Vespertino)",
+      "nome": "703",
       "ano": "7º Ano",
       "turno": "Vespertino",
       "totalAlunos": 35,
@@ -4502,7 +4502,7 @@
     },
     {
       "codigo": "801",
-      "nome": "8º Ano - Turma 801 (Matutino)",
+      "nome": "801",
       "ano": "8º Ano",
       "turno": "Matutino",
       "totalAlunos": 39,
@@ -4667,7 +4667,7 @@
     },
     {
       "codigo": "802",
-      "nome": "8º Ano - Turma 802 (Vespertino)",
+      "nome": "802",
       "ano": "8º Ano",
       "turno": "Vespertino",
       "totalAlunos": 31,
@@ -4800,7 +4800,7 @@
     },
     {
       "codigo": "803",
-      "nome": "8º Ano - Turma 803 (Vespertino)",
+      "nome": "803",
       "ano": "8º Ano",
       "turno": "Vespertino",
       "totalAlunos": 30,
@@ -4924,322 +4924,6 @@
         {
           "nome": "YASMIN EVANGELISTA",
           "responsavel": "JANETE FARIAS PRESTES"
-        }
-      ]
-    },
-    {
-      "codigo": "3º Ciclo A Noturno",
-      "nome": "3º Ciclo A Noturno (Português/Arte/Inglês)",
-      "ano": "EJA - 3º Ciclo",
-      "turno": "Noturno",
-      "totalAlunos": 10,
-      "alunos": [
-        {
-          "nome": "EZEQUIEL HENRIQUE CARDOSO DA CUNHA",
-          "responsavel": "FABÍOLA ELIETE CARDOSO / HENRIQUE HERTZOG DA CUNHA"
-        },
-        {
-          "nome": "HELMA THAIS DE FREITAS LANGHINRICHS",
-          "responsavel": "MAIVI CRISTINA LIMA DE FREITAS / MARIO DOS SANTOS LANGHINRICHS"
-        },
-        {
-          "nome": "HENRI GABRIEL GERONIMO FURTADO",
-          "responsavel": "BRUNA EMANUELA KIPFER GERONIMO"
-        },
-        {
-          "nome": "JOSÉ CARLOS VICENTE LOPES",
-          "responsavel": "AMANDA JOANA VICENTE / ALAN PEREIRA LOPES"
-        },
-        {
-          "nome": "KAIALA RAQUELI DE JESUS SANTOS",
-          "responsavel": "CARLA SANTOS SILVA / ADINOALISON DE JESUS SANTOS"
-        },
-        {
-          "nome": "LUIZ HENRIQUE THIBES DA SILVA",
-          "responsavel": "LUCIA THIBES CORREA / MARCIO JOSÉ DA SILVA"
-        },
-        {
-          "nome": "MATHEUS CAMPOS",
-          "responsavel": "SIMONE RAIMUNDO / JOSÉ ALEXANDRE ANDRADE CAMPOS"
-        },
-        {
-          "nome": "MICHELI MIKAELI DE OLIVEIRA",
-          "responsavel": "EMA BUTZKE ROVER / MAURICIO DE OLIVEIRA"
-        },
-        {
-          "nome": "MIRLANDIE MICHEL",
-          "responsavel": "JEAN MICHEL"
-        },
-        {
-          "nome": "WISKENSON PETIT FRERE",
-          "responsavel": ""
-        }
-      ]
-    },
-    {
-      "codigo": "4º Ciclo A Matutino",
-      "nome": "4º Ciclo A Matutino (Ciências)",
-      "ano": "EJA - 4º Ciclo",
-      "turno": "Matutino",
-      "totalAlunos": 15,
-      "alunos": [
-        {
-          "nome": "ABNER MATHEUS DA MAIA DE SA DA SILVA",
-          "responsavel": "PRISCILA JANAINA DA MAIA / MARCELO DE SÁ DA SILVA"
-        },
-        {
-          "nome": "ARTHUR GABRIEL RUFINO NARDES",
-          "responsavel": "STEFANI LIDIANI RUFINO / ALCIONE LUIZ NARDES NETO"
-        },
-        {
-          "nome": "BERNARDO PEREIRA DAVID",
-          "responsavel": "EDICLEIA FERNANDES PEREIRA / GUILHERME RODRIGO DAVID"
-        },
-        {
-          "nome": "CLEVERSON LUIS MARQUES LOURENÇO",
-          "responsavel": "MARCIA APARECIDA MARQUES DOS SANTOS"
-        },
-        {
-          "nome": "DANIELLE TAMIRES SOARES NOGUEIRA",
-          "responsavel": "DANIELA SILVA SOARES"
-        },
-        {
-          "nome": "DEIVIDY GUSTAVO DE LARA",
-          "responsavel": "MARLEI FATIMA RIBEIRO DE LARA"
-        },
-        {
-          "nome": "DOUGLAS LIMA DA SILVA",
-          "responsavel": "ADEILZA MOTA LIMA / DIEGO VINICIUS LIMA DA SILVA"
-        },
-        {
-          "nome": "EMILI GABRIELI DE OLIVEIRA MENDES",
-          "responsavel": "LETÍCIA DE OLIVEIRA"
-        },
-        {
-          "nome": "GUSTAVO HENRIQUE CAMPINAS FERREIRA",
-          "responsavel": "PATRICIA MORAES CHAVES CAMPINAS / EDSON FERREIRA"
-        },
-        {
-          "nome": "IVAN SAULLUS LEARTH DUTRA DE ARAUJO",
-          "responsavel": "MARINA FERREIRA DUTRA DE ARAÚJO / CELSO IVAN LEARTH DE ARAÚJO"
-        },
-        {
-          "nome": "KAYLA RAUANA FERREIRA DE BARROS",
-          "responsavel": "KÁTIA CONCEIÇÃO FERREIRA DE BARROS"
-        },
-        {
-          "nome": "NATHAN DE SOUZA CORREIA",
-          "responsavel": "SARAIM DE SOUZA / DOUGLAS CORREIA"
-        },
-        {
-          "nome": "SAMIRA DUARTE VIDAL",
-          "responsavel": "SAIONARA AFONSO VIDAL / ROBSON SANTOS DUARTE"
-        },
-        {
-          "nome": "STELA LUIZ PEREIRA",
-          "responsavel": "CLARENI LUIZ PEREIRA / WAGNER FABIANO PEREIRA"
-        },
-        {
-          "nome": "YSAQUI GONZAGA DE MOURA",
-          "responsavel": "INGRID LEITÃO GONZAGA DE MOURA / FELIPE MACHADO DE MOURA"
-        }
-      ]
-    },
-    {
-      "codigo": "4º Ciclo B Noturno",
-      "nome": "4º Ciclo B Noturno (Português/Arte/Inglês)",
-      "ano": "EJA - 4º Ciclo",
-      "turno": "Noturno",
-      "totalAlunos": 21,
-      "alunos": [
-        {
-          "nome": "ALICE LAIS MEDEIROS BEZERRA",
-          "responsavel": "CAMILA LAIS OLIVEIRA MEDEIROS / JOAO DAMASCENA DOS SANTOS BEZERRA"
-        },
-        {
-          "nome": "ALYSSON KAWÃ SANTOS DA CRUZ",
-          "responsavel": "ALINE DOS SANTOS / IVANILTON DA CRUZ"
-        },
-        {
-          "nome": "ANA CLARA FAVACHO SALDANHA",
-          "responsavel": "THAMARA SILVA FAVACHO / CARLOS ROGÉRIO DAMASCENO SALDANHA"
-        },
-        {
-          "nome": "DUQUI DLEI FARIAS COUTO",
-          "responsavel": "CLAUDIA HELENA FARIAS / DUQUI DLEI DOS SANTOS"
-        },
-        {
-          "nome": "FABRICIO NEIST JUNIOR",
-          "responsavel": "JULIANA ESTRELITA DA LUZ / FABRICIO NEIST"
-        },
-        {
-          "nome": "GABRIELI NÁTALI CORRÊA",
-          "responsavel": "DANIELE CRISTIENE DE AMORIM CORRÊA"
-        },
-        {
-          "nome": "GEOVANNA MOREIRA DOS SANTOS",
-          "responsavel": "GEOVANLÍVIA MOREIRA DOS SANTOS / JOSÉ LUIZ DOS SANTOS"
-        },
-        {
-          "nome": "GUILHERME OLIVEIRA DA SILVA",
-          "responsavel": "LUANA SOARES DE OLIVEIRA"
-        },
-        {
-          "nome": "GUSTAVO PASCOAL ROSA",
-          "responsavel": "SANDRA REGINA PASCOAL"
-        },
-        {
-          "nome": "HENRIQUE DO NASCIMENTO SCHURTZ",
-          "responsavel": "ALINE DO NASCIMENTO"
-        },
-        {
-          "nome": "IZABELE EVANGELISTA DOS SANTOS",
-          "responsavel": ""
-        },
-        {
-          "nome": "JOAO GABRIEL SILVEIRA PADILHA",
-          "responsavel": "ALINE PADILHA SILVEIRA / VALMIR SILVEIRA"
-        },
-        {
-          "nome": "JOFER ISACRUZ PARODI LAZARDE",
-          "responsavel": "MARBEL NIERYAN LAZARDE HERNANDEZ / ISAIAS JOSE PARODI LANZ"
-        },
-        {
-          "nome": "KAUANE FLORINDA BENTO",
-          "responsavel": "MARGARETE BENTO"
-        },
-        {
-          "nome": "LUCAS DE FREITAS LESSA",
-          "responsavel": "JOELMA AMELIA DE FREITAS / LUCAS EDENI LESSA"
-        },
-        {
-          "nome": "LUDIERRE SANTOS GARCIA",
-          "responsavel": "AGNALDO CAVALHEIRO GARCIA"
-        },
-        {
-          "nome": "LUIS EDUARDO ALENCAR DA SILVA",
-          "responsavel": "MARIA JOSEVANIA ALENCAR DOS SANTOS"
-        },
-        {
-          "nome": "MARIA MAGNELITHA JOSEPH",
-          "responsavel": "EROL JOSEPH"
-        },
-        {
-          "nome": "MIZAEL ISAIAS DE SOUZA",
-          "responsavel": "ISAIAS DE SOUZA / GEOVANA MARTIRE DE SOUZA"
-        },
-        {
-          "nome": "RUAN VAGNER NUNES DOS SANTOS",
-          "responsavel": "SILVANA NUNS DOS SANTOS / RONALDO VAGNER DOS SANTOS"
-        },
-        {
-          "nome": "THIAGO NUNES PIASSAROLLO",
-          "responsavel": "CRISTIANE ALANIZ NUNES / DEJEAN ESTIGARRIBIA PIASSOROLLO"
-        }
-      ]
-    },
-    {
-      "codigo": "4º Ciclo C Noturno",
-      "nome": "4º Ciclo C Noturno (História/Geografia)",
-      "ano": "EJA - 4º Ciclo",
-      "turno": "Noturno",
-      "totalAlunos": 24,
-      "alunos": [
-        {
-          "nome": "ALEXANDER RAFAEL DA SILVA PATRICIO",
-          "responsavel": "MARLI COSTA DA SILVA / ADALTO FRANCISCO MACIEIRA PATRICIO"
-        },
-        {
-          "nome": "ALEXSANDRO PEREIRA DE SOUZA",
-          "responsavel": "ELISETE PEREIRA"
-        },
-        {
-          "nome": "AMABILE DE AVILA WESSLER",
-          "responsavel": "BEATRIZ SOARES DE AVILA / VALDOMIRO WESSLER"
-        },
-        {
-          "nome": "ANA CAROLINA SANTOS",
-          "responsavel": "GISELE AMBROZIO / JOSÉ NAGELIO SANTOS"
-        },
-        {
-          "nome": "CALEBE JOSUE CAVANHA",
-          "responsavel": "GIZELLE MIEKO RICOBOM CAVANHA / FABRICIO CAVANHA"
-        },
-        {
-          "nome": "DAVI SCHORK ALVES",
-          "responsavel": "JAQUELINE SCHORK GONÇALVES"
-        },
-        {
-          "nome": "DAVIDSON MARC",
-          "responsavel": "MARIE MONIQUE MARCILUS / JEAN PAUREL MARC"
-        },
-        {
-          "nome": "DJOUMAMA CASTELIN",
-          "responsavel": "CHERLINE MILIUS"
-        },
-        {
-          "nome": "FLÁVIA KAROLLINY COSTA DE OLIVEIRA",
-          "responsavel": "FLÁVIA RAMONA DE PAULA COSTA / OLICIO DE OLIVEIRA"
-        },
-        {
-          "nome": "GABRIEL BARZALA LOBOS",
-          "responsavel": "SILVIA BARZALA ROTELA / GORGONIO LOBOS"
-        },
-        {
-          "nome": "JESUBINA PAUL",
-          "responsavel": "MARIE YVENA PAUL LOSIAS"
-        },
-        {
-          "nome": "JOSIELE CONINCK RIBEIRO",
-          "responsavel": "KARLA CONINCK"
-        },
-        {
-          "nome": "JULIANA VITORIA MARTINS",
-          "responsavel": "PAMELA TORQUATO GOMES / JULIANO MARTINS"
-        },
-        {
-          "nome": "KELWYN TEIXEIRA SARAIVA",
-          "responsavel": "LUANA MENDES TEIXEIRA / DIMORVAN PEREIRA SARAIVA"
-        },
-        {
-          "nome": "LOHAN ROCHA CALDAS DIMAS",
-          "responsavel": "CAMILA ROCHA CALDAS / CLAUDIOMIR DIMAS"
-        },
-        {
-          "nome": "LUIZ FELIPE CARDOZO DO NASCIMENTO",
-          "responsavel": "ADRIANA DA SILVA CARDOZO / ANDERSON DO NASCIMENTO"
-        },
-        {
-          "nome": "MARIA EDUARDA PALHANO",
-          "responsavel": "ISABEL CRISTINA DE MIRANDA / FÁBIO PALHANO"
-        },
-        {
-          "nome": "OTAVIO NICOLAY RIBEIRO LIMA",
-          "responsavel": "ARIANA RIBEIRO"
-        },
-        {
-          "nome": "RAYANE RAQUELE ALVES DA SILVA",
-          "responsavel": "CINTIA DA SILVA BARBOSA / ROGERIO ALVES DA SILVA"
-        },
-        {
-          "nome": "RYAN VITOR DE CARVALHO BEZERRA",
-          "responsavel": "MARICLEUDA MARTINS DE CARVALHO / ALTAMIRO DE OLIVEIRA BEZERRA"
-        },
-        {
-          "nome": "VITORIA JACINTO CANDIDO",
-          "responsavel": "ANDREZA JACINTO JOÃO / RENATO LUIZ CANDIDO"
-        },
-        {
-          "nome": "WESLLEY CRISTIANO ZIMMERMANN",
-          "responsavel": "MICHELAINE TAMIRES DA SILVA / MATHIAS CRISTIANO ZIMMERMANN"
-        },
-        {
-          "nome": "YASMIN CONCEICAO DA COSTA",
-          "responsavel": "MARCIA CONCEIÇÃO NASCIMENTO / SALOMÃO RODRIGUES DA COSTA"
-        },
-        {
-          "nome": "YVENELSON JOSEPH",
-          "responsavel": "YOLANDE JOSEPH BIEN-AIME / IVES JOSEPH"
         }
       ]
     }

@@ -48,6 +48,7 @@ import {
 } from '../utils/pix';
 import { ComandasPrintModal } from '../components/natal/ComandasPrintModal';
 import { BalancetePrintModal } from '../components/natal/BalancetePrintModal';
+import { TURMAS_OFICIAIS } from '../data/turmasAlunosOficiais';
 
 // Cardápio oficial da ficha enviada
 const PRODUTOS_INICIAIS = [
@@ -848,11 +849,17 @@ export const NatalLuz: React.FC = () => {
                   </label>
                   <input
                     type="text"
+                    list="turmas-oficiais-natal"
                     value={turma}
                     onChange={(e) => setTurma(e.target.value)}
-                    placeholder="Ex: 5º Ano A, 6º Ano B"
+                    placeholder="Ex: 101, 102, 501..."
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
+                  <datalist id="turmas-oficiais-natal">
+                    {TURMAS_OFICIAIS.map((t) => (
+                      <option key={t.codigo} value={t.codigo} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>

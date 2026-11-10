@@ -18,25 +18,40 @@ import { NatalLuz } from './pages/NatalLuz';
 import { PedidoNatalPublico } from './pages/PedidoNatalPublico';
 
 export default function App() {
-  // Verificação de rota pública para o Pedido do Natal Luz (sem login e sem menu contábil)
+  // Verificação de rota pública para o Pedido do Natal Luz:
+  // - No celular: abre direto para os pais comprarem (a não ser que tenha ?admin=1 ou ?direct=1)
+  // - No PC: mantém acesso administrativo completo como antes (Dashboard, Natal Luz admin, etc.)
   const isPublicNatal = (() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const pathname = window.location.pathname.toLowerCase();
       const hash = window.location.hash.toLowerCase();
 
+      // Se for forçado acesso administrativo (ex: ?admin=1, ?direct=1 ou ?acesso=admin), nunca é público
+      const isAdminForced = urlParams.get('direct') === '1' || urlParams.get('acesso') === 'admin' || urlParams.get('admin') === '1';
+      if (isAdminForced) {
+        return false;
+      }
+
+      // Detecção de celular / dispositivo móvel
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+      // No celular: SEMPRE direciona diretamente para a tela de compras dos pais
+      if (isMobileDevice) {
+        return true;
+      }
+
+      // No PC: mantém o sistema contábil/administrativo como padrão.
+      // Abre a tela pública apenas se o link for explicitamente para o formulário dos pais (/natalLuz)
       return (
         pathname.includes('natalluz') ||
         pathname.includes('pedido-natal') ||
-        pathname.endsWith('/natal') ||
         hash.includes('natalluz') ||
         hash.includes('pedido-natal') ||
-        hash.includes('natal') ||
         urlParams.get('tab') === 'natalluz' ||
         urlParams.get('tab') === 'natal-luz' ||
         urlParams.get('tab') === 'pedido-natal' ||
         urlParams.get('tab') === 'natal-publico' ||
-        urlParams.get('tab') === 'natal' ||
         urlParams.get('pedido') === 'natal'
       );
     } catch {
