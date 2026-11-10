@@ -43,7 +43,8 @@ import {
   CHAVE_PIX_CEPR, 
   NOME_RECEBEDOR_PIX, 
   CIDADE_PIX, 
-  WHATSAPP_APP 
+  WHATSAPP_APP,
+  formatCodigoPixTxid
 } from '../utils/pix';
 import { ComandasPrintModal } from '../components/natal/ComandasPrintModal';
 import { BalancetePrintModal } from '../components/natal/BalancetePrintModal';
