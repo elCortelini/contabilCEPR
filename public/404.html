@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CE Pedro Rizzi - Redirecionando...</title>
+    <script>
+      // Redireciona rotas SPA no GitHub Pages (ex: /contabilCEPR/natalLuz)
+      (function () {
+        var path = window.location.pathname;
+        var search = window.location.search;
+        var repo = '/contabilCEPR';
+
+        if (path.toLowerCase().indexOf(repo.toLowerCase()) === 0) {
+          var route = path.slice(repo.length);
+          window.location.replace(repo + '/#' + (route.startsWith('/') ? route : '/' + route) + search);
+        } else {
+          window.location.replace('/#' + path + search);
+        }
+      })();
+    </script>
+  </head>
+  <body style="background-color: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+    <p>Carregando formulário do Natal Luz...</p>
+  </body>
+</html>
