@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Sparkles, 
   CheckCircle2, 
@@ -22,7 +22,9 @@ import {
   ClipboardCheck,
   Camera,
   X,
-  Info
+  Info,
+  ZoomIn,
+  Maximize2
 } from 'lucide-react';
 import { 
   generatePixPayload, 
@@ -111,6 +113,8 @@ export const PedidoNatalPublico: React.FC = () => {
   const [comprovanteBase64, setComprovanteBase64] = useState<string | null>(null);
   const [enviandoComprovante, setEnviandoComprovante] = useState(false);
   const [comprovanteEnviadoSucesso, setComprovanteEnviadoSucesso] = useState(false);
+  const [modalVerPrintMobile, setModalVerPrintMobile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Recuperar pedido anterior salvo no celular
   useEffect(() => {
@@ -184,7 +188,7 @@ export const PedidoNatalPublico: React.FC = () => {
     }
   }, [turmaSelecionada]);
 
-  // Ao selecionar um aluno da lista, preencher responsável/contato se disponível
+  // Ao selecionar um aluno da lista, preencher apenas o nome do aluno (NÃO preencher responsável automaticamente)
   const handleSelecionarAluno = (alunoId: string) => {
     setAlunoSelecionadoId(alunoId);
     if (alunoId === 'outro') {
@@ -195,12 +199,7 @@ export const PedidoNatalPublico: React.FC = () => {
       const aluno = alunos.find(a => String(a.id) === alunoId);
       if (aluno) {
         setNomeAlunoCustom(aluno.nome);
-        if (aluno.responsavel && !responsavel) {
-          setResponsavel(aluno.responsavel);
-        }
-        if (aluno.contato && !telefone) {
-          setTelefone(aluno.contato);
-        }
+        // O nome do responsável e telefone devem ser preenchidos diretamente pelos pais
       }
     }
   };
@@ -322,45 +321,62 @@ export const PedidoNatalPublico: React.FC = () => {
     setTimeout(() => setCopiadoPix(false), 3000);
   };
 
-  // Processar e comprimir blob de imagem via Canvas para ~150KB
+  // Processar e exibir imagem do print imediatamente
   const processImageBlob = (blob: Blob) => {
-    if (blob.type.startsWith('image/')) {
+    try {
       const reader = new FileReader();
       reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const maxDim = 1200;
-          let width = img.width;
-          let height = img.height;
+        const raw = event.target?.result as string;
+        if (!raw) return;
 
-          if (width > height && width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
+        // Atualização instantânea na tela para o usuário ver o print imediatamente
+        setComprovanteBase64(raw);
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            const compressed = canvas.toDataURL('image/jpeg', 0.75);
-            setComprovanteBase64(compressed);
-          }
-        };
-        img.src = event.target?.result as string;
+        // Se for imagem, comprime em segundo plano via Canvas para otimizar envio
+        if (blob.type.startsWith('image/') || raw.startsWith('data:image')) {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              const maxDim = 1200;
+              let width = img.width;
+              let height = img.height;
+
+              if (width > height && width > maxDim) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else if (height > maxDim) {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressed = canvas.toDataURL('image/jpeg', 0.82);
+                if (compressed && compressed.length > 100) {
+                  setComprovanteBase64(compressed);
+                }
+              }
+            } catch (canvasErr) {
+              console.warn('Fallback para imagem original:', canvasErr);
+            }
+          };
+          img.onerror = () => {
+            // Em caso de falha de renderização no canvas, preserva o raw original
+            setComprovanteBase64(raw);
+          };
+          img.src = raw;
+        }
+      };
+      reader.onerror = () => {
+        alert('Não foi possível ler o arquivo. Tente tirar um print novamente.');
       };
       reader.readAsDataURL(blob);
-    } else {
-      // Outro formato (ex: PDF)
-      const reader = new FileReader();
-      reader.onload = () => {
-        setComprovanteBase64(reader.result as string);
-      };
-      reader.readAsDataURL(blob);
+    } catch (e) {
+      console.error('Erro ao ler blob:', e);
     }
   };
 
@@ -369,6 +385,7 @@ export const PedidoNatalPublico: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     processImageBlob(file);
+    e.target.value = '';
   };
 
   // Colar print da área de transferência (Opção 1)
@@ -424,23 +441,12 @@ export const PedidoNatalPublico: React.FC = () => {
     return () => window.removeEventListener('paste', onPaste);
   }, [passo]);
 
-  // Enviar comprovante anexado
-  const handleEnviarComprovante = async () => {
-    if (!pedidoCriado || !comprovanteBase64 || enviandoComprovante) return;
-
-    setEnviandoComprovante(true);
-
-    try {
-      await api.updateNatalComprovante(pedidoCriado.id, comprovanteBase64);
-      setComprovanteEnviadoSucesso(true);
-      setPasso(4);
-    } catch (err) {
-      alert('Comprovante armazenado localmente! Se preferir, envie também pelo WhatsApp da escola.');
-      setComprovanteEnviadoSucesso(true);
-      setPasso(4);
-    } finally {
-      setEnviandoComprovante(false);
-    }
+  // Sanitizar telefone
+  const sanitizarTelefone = (tel: string) => {
+    const nums = tel.replace(/\D/g, '');
+    if (!nums) return '';
+    if (nums.startsWith('55')) return nums;
+    return `55${nums}`;
   };
 
   // Linhas formatadas dos itens do carrinho
@@ -454,33 +460,63 @@ export const PedidoNatalPublico: React.FC = () => {
       .join('\n');
   }, [carrinho]);
 
-  // Mensagem completa da comanda para envio no WhatsApp
+  // Mensagem completa da comanda para envio no WhatsApp do responsável
   const textoComandaWhatsApp = useMemo(() => {
     if (!pedidoCriado) return '';
     return `🎄 *CENTRO EDUCACIONAL PEDRO RIZZI* 🎄\n` +
-      `✨ *NATAL LUZ 2026 - COMANDA / PEDIDO ANTECIPADO* ✨\n` +
+      `✨ *NATAL LUZ 2026 - SEU TICKET / COMANDA* ✨\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `📌 *Pedido:* ${pedidoCriado.codigoPedido}\n` +
       `🧒 *Estudante:* ${nomeAlunoFinal}\n` +
       `🏫 *Turma:* ${turmaSelecionada}\n` +
       `👨‍👩‍👧 *Responsável:* ${responsavel}\n` +
       `📞 *Telefone:* ${telefone}\n\n` +
-      `📦 *ITENS DA COMANDA:*\n${linhasItensTexto || '• Itens confirmados no sistema'}\n\n` +
+      `📦 *ITENS COMPRADOS:*\n${linhasItensTexto || '• Itens confirmados no sistema'}\n\n` +
       `💰 *VALOR TOTAL: R$ ${pedidoCriado.total.toFixed(2).replace('.', ',')}*\n` +
       `💳 *Forma de Pagamento:* PIX\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `⚠️ *COMUNICADO IMPORTANTE AO RESPONSÁVEL:*\n` +
+      `⚠️ *AVISO SOBRE A VALIDAÇÃO E ENTREGA:*\n` +
       `📌 *A comprovação da compra está sujeita à conferência do recibo/comprovante do Pix pela tesouraria da APP.*\n` +
       `🎟️ *Após a conferência, o ticket oficial de compra será enviado diretamente pela criança na sala de aula para ser utilizado no dia da festa.*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `_Segue o comprovante de pagamento Pix para conferência!_ ✨`;
+      `_Guarde esta mensagem como comprovante da sua comanda!_ ❤️✨`;
   }, [pedidoCriado, nomeAlunoFinal, turmaSelecionada, responsavel, telefone, linhasItensTexto]);
 
-  // Montar link direto de WhatsApp da APP com o comprovante e itens detalhados
-  const whatsappUrl = useMemo(() => {
+  // Link direto para abrir o WhatsApp DO RESPONSÁVEL (não da APP)
+  const whatsappUrlResponsavel = useMemo(() => {
     if (!textoComandaWhatsApp) return '';
-    return `https://wa.me/${WHATSAPP_APP_RAW}?text=${encodeURIComponent(textoComandaWhatsApp)}`;
-  }, [textoComandaWhatsApp]);
+    const numLimpo = sanitizarTelefone(telefone);
+    if (!numLimpo) {
+      return `https://api.whatsapp.com/send?text=${encodeURIComponent(textoComandaWhatsApp)}`;
+    }
+    return `https://api.whatsapp.com/send?phone=${numLimpo}&text=${encodeURIComponent(textoComandaWhatsApp)}`;
+  }, [textoComandaWhatsApp, telefone]);
+
+  // Enviar comprovante anexado e disparar ticket para o WhatsApp do responsável
+  const handleEnviarComprovante = async () => {
+    if (!pedidoCriado || !comprovanteBase64 || enviandoComprovante) return;
+
+    setEnviandoComprovante(true);
+
+    try {
+      await api.updateNatalComprovante(pedidoCriado.id, comprovanteBase64);
+      setComprovanteEnviadoSucesso(true);
+      setPasso(4);
+
+      // Envia automaticamente para o WhatsApp do responsável
+      if (whatsappUrlResponsavel) {
+        window.open(whatsappUrlResponsavel, '_blank');
+      }
+    } catch (err) {
+      setComprovanteEnviadoSucesso(true);
+      setPasso(4);
+      if (whatsappUrlResponsavel) {
+        window.open(whatsappUrlResponsavel, '_blank');
+      }
+    } finally {
+      setEnviandoComprovante(false);
+    }
+  };
 
   // Copiar resumo da comanda para o responsável
   const handleCopiarTextoComanda = () => {
@@ -908,20 +944,28 @@ export const PedidoNatalPublico: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setComprovanteBase64(null)}
-                      className="text-slate-400 hover:text-rose-400 p-1 flex items-center gap-1 transition-colors"
+                      className="text-slate-400 hover:text-rose-400 p-1 flex items-center gap-1 transition-colors cursor-pointer"
                     >
-                      <X className="w-4 h-4" /> Remover
+                      <X className="w-4 h-4" /> Trocar Print
                     </button>
                   </div>
 
-                  <div className="max-h-52 overflow-hidden rounded-xl bg-black/40 border border-slate-700 flex items-center justify-center p-2">
-                    {comprovanteBase64.startsWith('data:image') ? (
-                      <img src={comprovanteBase64} alt="Prévia do comprovante" className="max-h-48 object-contain rounded" />
+                  {/* Print com toque para ampliar */}
+                  <div 
+                    onClick={() => setModalVerPrintMobile(true)}
+                    className="max-h-64 overflow-hidden rounded-xl bg-black/50 border border-slate-700 flex items-center justify-center p-2 cursor-pointer relative group"
+                    title="Toque para ampliar o print"
+                  >
+                    {comprovanteBase64.startsWith('data:image') || comprovanteBase64.startsWith('http') ? (
+                      <img src={comprovanteBase64} alt="Prévia do comprovante" className="max-h-56 object-contain rounded" />
                     ) : (
                       <div className="text-slate-300 text-xs py-4 flex items-center gap-2">
                         <Receipt className="w-6 h-6 text-emerald-400" /> Documento anexado pronto para envio
                       </div>
                     )}
+                    <span className="absolute bottom-2 right-2 bg-slate-900/90 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-700 flex items-center gap-1">
+                      <ZoomIn className="w-3 h-3" /> Toque para ampliar
+                    </span>
                   </div>
 
                   <button
@@ -983,23 +1027,28 @@ export const PedidoNatalPublico: React.FC = () => {
                         Tirar Foto ou Escolher da Galeria
                       </h4>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        Tire foto do comprovante com a câmera ou selecione da galeria/PDF do celular.
+                        Tire foto do comprovante com a câmera ou selecione da galeria/prints do celular.
                       </p>
-                      <label className="mt-2.5 w-full py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="mt-2.5 w-full py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer"
+                      >
                         <Camera className="w-4 h-4 text-emerald-400" />
-                        <span>Tirar Foto / Escolher Arquivo</span>
-                        <input
-                          type="file"
-                          accept="image/*,application/pdf"
-                          onChange={handleArquivoComprovante}
-                          className="hidden"
-                        />
-                      </label>
+                        <span>Tirar Foto / Escolher da Galeria</span>
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={handleArquivoComprovante}
+                        className="hidden"
+                      />
                     </div>
                   </div>
                 </div>
 
-                {/* OPÇÃO 3: ENVIAR PELO WHATSAPP DA APP */}
+                {/* OPÇÃO 3: RECEBER COMANDA NO MEU WHATSAPP */}
                 <div className="bg-slate-900/80 border border-slate-700/80 hover:border-emerald-400/60 rounded-xl p-3.5 transition-all">
                   <div className="flex items-start gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
@@ -1008,19 +1057,19 @@ export const PedidoNatalPublico: React.FC = () => {
                     <div className="flex-1">
                       <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
                         <MessageCircle className="w-4 h-4 text-emerald-400" />
-                        Enviar pelo WhatsApp da APP
+                        Receber Ticket no Meu WhatsApp
                       </h4>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        Prefere enviar pelo WhatsApp? O link abre direto com os dados do pedido já preenchidos.
+                        Abre o seu próprio WhatsApp com os itens comprados e o código do pedido prontos para você guardar.
                       </p>
                       <a
-                        href={whatsappUrl}
+                        href={whatsappUrlResponsavel}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-2.5 w-full py-2.5 px-3 rounded-lg bg-emerald-700/40 hover:bg-emerald-700/60 border border-emerald-500/40 text-emerald-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
                       >
                         <MessageCircle className="w-4 h-4 text-emerald-300" />
-                        <span>WhatsApp da APP ({WHATSAPP_APP})</span>
+                        <span>Abrir no Meu WhatsApp ({telefone || 'Meu Número'})</span>
                         <ExternalLink className="w-3.5 h-3.5 text-emerald-300 ml-auto" />
                       </a>
                     </div>
@@ -1113,13 +1162,13 @@ export const PedidoNatalPublico: React.FC = () => {
               {/* Botões de Ação WhatsApp e Cópia */}
               <div className="pt-2 space-y-2.5">
                 <a
-                  href={whatsappUrl}
+                  href={whatsappUrlResponsavel}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white font-black text-sm tracking-wide flex items-center justify-center gap-2 shadow-xl shadow-emerald-950 active:scale-98 transition cursor-pointer"
                 >
                   <MessageCircle className="w-5 h-5" />
-                  <span>Enviar Comprovante & Itens no WhatsApp da APP</span>
+                  <span>Abrir / Reenviar Comanda no Meu WhatsApp ({telefone || 'Meu Número'})</span>
                 </a>
 
                 <button
@@ -1153,6 +1202,31 @@ export const PedidoNatalPublico: React.FC = () => {
         )}
 
       </main>
+
+      {/* Modal Lightbox para visualizar print ampliado no celular */}
+      {modalVerPrintMobile && comprovanteBase64 && (
+        <div 
+          onClick={() => setModalVerPrintMobile(false)}
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4 animate-in fade-in"
+        >
+          <div className="w-full max-w-md flex justify-between items-center text-white pb-3" onClick={(e) => e.stopPropagation()}>
+            <span className="text-xs font-bold text-slate-300">Comprovante de Pagamento</span>
+            <button 
+              type="button"
+              onClick={() => setModalVerPrintMobile(false)}
+              className="px-3 py-1 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-700 border border-slate-600"
+            >
+              ✕ Fechar
+            </button>
+          </div>
+          <div 
+            className="max-w-md max-h-[80vh] overflow-auto rounded-2xl bg-slate-900 border border-slate-700 p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img src={comprovanteBase64} alt="Comprovante ampliado" className="w-full h-auto rounded-xl object-contain" />
+          </div>
+        </div>
+      )}
 
       {/* Footer simples sem links administrativos */}
       <footer className="text-center text-[11px] text-slate-500 py-4 border-t border-slate-800">

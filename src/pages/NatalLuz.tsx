@@ -34,7 +34,11 @@ import {
   Eye,
   CheckCheck,
   XCircle,
-  FileText
+  FileText,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Maximize2
 } from 'lucide-react';
 import { api } from '../services/api';
 import { 
@@ -93,6 +97,8 @@ export const NatalLuz: React.FC = () => {
   const [modalComprovante, setModalComprovante] = useState<any | null>(null);
   const [motivoRecusaInput, setMotivoRecusaInput] = useState('');
   const [mostrarRecusaField, setMostrarRecusaField] = useState(false);
+  const [zoomComprovante, setZoomComprovante] = useState(1);
+  const [rotacaoComprovante, setRotacaoComprovante] = useState(0);
 
   // Filtros da Aba Arrecadação
   const [filtroFormaArrecadacao, setFiltroFormaArrecadacao] = useState<'todas' | 'pix' | 'dinheiro'>('todas');
@@ -1490,6 +1496,8 @@ export const NatalLuz: React.FC = () => {
                               type="button"
                               onClick={() => {
                                 setModalComprovante(cmd);
+                                setZoomComprovante(1);
+                                setRotacaoComprovante(0);
                                 setMostrarRecusaField(false);
                                 setMotivoRecusaInput('');
                               }}
@@ -1996,11 +2004,11 @@ export const NatalLuz: React.FC = () => {
       )}
 
       {/* ============================================================== */}
-      {/* MODAL DE CONFERÊNCIA DE COMPROVANTE (LIGHTBOX 1-CLIQUE)        */}
+      {/* MODAL DE CONFERÊNCIA DE COMPROVANTE (LIGHTBOX COM ZOOM NO PC)  */}
       {/* ============================================================== */}
       {modalComprovante && (
         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 my-6 text-slate-100 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 my-6 text-slate-100 animate-in fade-in zoom-in-95 duration-150">
             {/* Cabeçalho */}
             <div className="flex items-start justify-between border-b border-slate-700 pb-3">
               <div>
@@ -2019,26 +2027,94 @@ export const NatalLuz: React.FC = () => {
               </div>
               <button
                 onClick={() => setModalComprovante(null)}
-                className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 hover:bg-slate-700 transition"
+                className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 hover:bg-slate-700 transition cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            {/* Imagem do Comprovante */}
-            <div className="bg-slate-950 rounded-2xl p-2 border border-slate-800 max-h-[55vh] overflow-auto flex items-center justify-center">
+            {/* Barra de Ferramentas de Zoom & Ampliação (Para leitura de autenticação/banco no PC) */}
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-950/80 px-3.5 py-2 rounded-xl border border-slate-800 text-xs">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">Zoom:</span>
+                <button
+                  type="button"
+                  onClick={() => setZoomComprovante(prev => Math.min(prev + 0.3, 3.5))}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 flex items-center gap-1 font-bold cursor-pointer"
+                  title="Aumentar Zoom (+)"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                  <span>Ampliar ({Math.round(zoomComprovante * 100)}%)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomComprovante(prev => Math.max(prev - 0.3, 0.5))}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1 font-bold cursor-pointer"
+                  title="Diminuir Zoom (-)"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                  <span>Reduzir</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomComprovante(1)}
+                  className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 text-[11px] font-semibold cursor-pointer"
+                  title="Ajustar ao tamanho original"
+                >
+                  100%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRotacaoComprovante(prev => (prev + 90) % 360)}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 flex items-center gap-1 font-bold cursor-pointer"
+                  title="Girar imagem em 90 graus"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                  <span>Girar</span>
+                </button>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const w = window.open('');
+                    if (w && modalComprovante.comprovante) {
+                      w.document.write(`<title>Comprovante - Pedido ${modalComprovante.codigoPedido || modalComprovante.id}</title><body style="margin:0;background:#090d16;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${modalComprovante.comprovante}" style="max-width:98vw;max-height:98vh;object-contain;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.8);" /></body>`);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-blue-900/40 hover:bg-blue-800/60 text-blue-300 border border-blue-500/40 flex items-center gap-1.5 font-bold cursor-pointer transition"
+                  title="Abrir o comprovante isolado em tela cheia numa nova aba"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span>Tela Cheia</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Imagem do Comprovante com Suporte a Zoom Interativo */}
+            <div className="bg-slate-950 rounded-2xl p-3 border border-slate-800 min-h-[350px] max-h-[62vh] overflow-auto flex items-center justify-center relative select-none">
               {modalComprovante.comprovante ? (
                 modalComprovante.comprovante.startsWith('data:image') || modalComprovante.comprovante.startsWith('http') ? (
                   <img
                     src={modalComprovante.comprovante}
                     alt="Comprovante de pagamento"
-                    className="max-h-[50vh] w-auto max-w-full rounded-xl object-contain shadow-lg"
+                    onClick={() => setZoomComprovante(prev => prev > 1.2 ? 1 : 2.2)}
+                    style={{
+                      transform: `scale(${zoomComprovante}) rotate(${rotacaoComprovante}deg)`,
+                      transformOrigin: 'center center',
+                      transition: 'transform 0.18s ease-out'
+                    }}
+                    className={`max-h-[58vh] w-auto max-w-full rounded-xl object-contain shadow-2xl transition-all ${
+                      zoomComprovante > 1 ? 'cursor-zoom-out' : 'cursor-zoom-in'
+                    }`}
+                    title="Clique diretamente na imagem para alternar o zoom rápido"
                   />
                 ) : (
                   <iframe
                     src={modalComprovante.comprovante}
                     title="Documento de comprovante"
-                    className="w-full h-[50vh] rounded-xl border-none"
+                    className="w-full h-[58vh] rounded-xl border-none"
                   />
                 )
               ) : (
