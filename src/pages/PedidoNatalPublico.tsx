@@ -11,14 +11,18 @@ import {
   Phone, 
   User, 
   GraduationCap, 
-  ChevronRight,
-  ChevronLeft,
-  AlertCircle,
-  Upload,
-  MessageCircle,
-  Clock,
-  ShoppingBag,
-  ExternalLink
+  ChevronRight, 
+  ChevronLeft, 
+  AlertCircle, 
+  Upload, 
+  MessageCircle, 
+  Clock, 
+  ShoppingBag, 
+  ExternalLink,
+  ClipboardCheck,
+  Camera,
+  X,
+  Info
 } from 'lucide-react';
 import { 
   generatePixPayload, 
@@ -310,13 +314,9 @@ export const PedidoNatalPublico: React.FC = () => {
     setTimeout(() => setCopiadoPix(false), 3000);
   };
 
-  // Compactar e ler comprovante do celular
-  const handleArquivoComprovante = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Se for imagem, comprime no navegador via Canvas para ~150KB
-    if (file.type.startsWith('image/')) {
+  // Processar e comprimir blob de imagem via Canvas para ~150KB
+  const processImageBlob = (blob: Blob) => {
+    if (blob.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (event) => {
         const img = new Image();
@@ -345,16 +345,76 @@ export const PedidoNatalPublico: React.FC = () => {
         };
         img.src = event.target?.result as string;
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(blob);
     } else {
       // Outro formato (ex: PDF)
       const reader = new FileReader();
       reader.onload = () => {
         setComprovanteBase64(reader.result as string);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(blob);
     }
   };
+
+  // Ler arquivo selecionado pelo input (Opção 2)
+  const handleArquivoComprovante = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processImageBlob(file);
+  };
+
+  // Colar print da área de transferência (Opção 1)
+  const [colandoClipboard, setColandoClipboard] = useState(false);
+  const handleColarClipboard = async () => {
+    setColandoClipboard(true);
+    try {
+      if (!navigator.clipboard?.read) {
+        alert('Seu navegador bloqueou a leitura direta. Pressione Ctrl+V no teclado ou use a opção "Tirar Foto / Galeria".');
+        return;
+      }
+      const clipboardItems = await navigator.clipboard.read();
+      let achouImagem = false;
+      for (const item of clipboardItems) {
+        const imgType = item.types.find(t => t.startsWith('image/'));
+        if (imgType) {
+          const blob = await item.getType(imgType);
+          processImageBlob(blob);
+          achouImagem = true;
+          break;
+        }
+      }
+      if (!achouImagem) {
+        alert('Nenhuma imagem encontrada na sua área de transferência. Tire um print primeiro e tente novamente!');
+      }
+    } catch (err: any) {
+      alert('Permita o acesso à área de transferência para colar ou use o atalho Ctrl+V / opção da câmera.');
+    } finally {
+      setColandoClipboard(false);
+    }
+  };
+
+  // Capturar colagem global (Ctrl+V) no Passo 3
+  useEffect(() => {
+    if (passo !== 3) return;
+
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            processImageBlob(file);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [passo]);
 
   // Enviar comprovante anexado
   const handleEnviarComprovante = async () => {
@@ -789,72 +849,166 @@ export const PedidoNatalPublico: React.FC = () => {
               </p>
             </div>
 
-            {/* Sessão de Envio do Comprovante */}
-            <div className="bg-slate-800/90 border border-emerald-500/50 rounded-2xl p-5 space-y-4 shadow-xl">
-              <div className="flex items-start gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 mt-0.5">
+            {/* Sessão das 4 Opções de Envio e Comprovação */}
+            <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 space-y-4 shadow-xl">
+              <div className="flex items-start gap-3 pb-3 border-b border-slate-700/70">
+                <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 mt-0.5">
                   <Receipt className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-base">Já efetuou o pagamento?</h3>
+                  <h3 className="font-bold text-white text-base">Comprovação do Pagamento</h3>
                   <p className="text-xs text-slate-300">
-                    Envie o comprovante para confirmarmos seus tickets para o aluno <strong>{nomeAlunoFinal}</strong>.
+                    Escolha a opção mais fácil para você confirmar os tickets de <strong className="text-white">{nomeAlunoFinal}</strong>:
                   </p>
                 </div>
               </div>
 
-              {/* Opção 1: Anexar direto na tela */}
-              <div className="space-y-3 pt-2">
-                <label className="block w-full border-2 border-dashed border-slate-600 hover:border-emerald-400/80 rounded-xl p-4 text-center cursor-pointer bg-slate-900/60 transition-colors">
-                  <Upload className="w-7 h-7 text-emerald-400 mx-auto mb-2" />
-                  <span className="text-sm font-semibold text-white block">
-                    {comprovanteBase64 ? '✅ Comprovante selecionado (Clique para trocar)' : 'Toque aqui para anexar foto ou print'}
-                  </span>
-                  <span className="text-[11px] text-slate-400 block mt-0.5">
-                    Imagem compactada automaticamente para não pesar
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={handleArquivoComprovante}
-                    className="hidden"
-                  />
-                </label>
+              {/* Se o comprovante foi anexado (via Colar ou Galeria), mostra pré-visualização e botão de envio imediato */}
+              {comprovanteBase64 && (
+                <div className="bg-slate-900 border-2 border-emerald-500/70 rounded-2xl p-4 text-center space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between text-xs text-emerald-400 font-bold px-1">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4" /> Comprovante Carregado
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setComprovanteBase64(null)}
+                      className="text-slate-400 hover:text-rose-400 p-1 flex items-center gap-1 transition-colors"
+                    >
+                      <X className="w-4 h-4" /> Remover
+                    </button>
+                  </div>
 
-                {comprovanteBase64 && (
+                  <div className="max-h-52 overflow-hidden rounded-xl bg-black/40 border border-slate-700 flex items-center justify-center p-2">
+                    {comprovanteBase64.startsWith('data:image') ? (
+                      <img src={comprovanteBase64} alt="Prévia do comprovante" className="max-h-48 object-contain rounded" />
+                    ) : (
+                      <div className="text-slate-300 text-xs py-4 flex items-center gap-2">
+                        <Receipt className="w-6 h-6 text-emerald-400" /> Documento anexado pronto para envio
+                      </div>
+                    )}
+                  </div>
+
                   <button
                     type="button"
                     disabled={enviandoComprovante}
                     onClick={handleEnviarComprovante}
-                    className="w-full py-3.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
+                    className="w-full py-4 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-all cursor-pointer"
                   >
                     {enviandoComprovante ? (
                       <span>Enviando comprovante...</span>
                     ) : (
                       <>
                         <CheckCircle2 className="w-5 h-5" />
-                        <span>Confirmar e Enviar Comprovante</span>
+                        <span>Confirmar e Enviar Comprovante Agora</span>
                       </>
                     )}
                   </button>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Opção 2: Envio pelo WhatsApp da APP */}
-              <div className="pt-3 border-t border-slate-700/80 text-center">
-                <p className="text-xs text-slate-400 mb-2.5">
-                  Não conseguiu anexar aqui? Envie no WhatsApp oficial da APP:
-                </p>
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 py-3 px-4 w-full rounded-xl bg-emerald-700/40 hover:bg-emerald-700/60 border border-emerald-500/40 text-emerald-200 text-xs font-bold transition-all"
-                >
-                  <MessageCircle className="w-4 h-4 text-emerald-400" />
-                  <span>Enviar Comprovante p/ WhatsApp da APP: {WHATSAPP_APP}</span>
-                  <ExternalLink className="w-3.5 h-3.5 ml-auto text-emerald-400" />
-                </a>
+              {/* AS 4 OPÇÕES DE ENVIO / RASTREAMENTO */}
+              <div className="space-y-3 pt-1">
+                {/* OPÇÃO 1: COLAR PRINT (CLIPBOARD) */}
+                <div className="bg-slate-900/80 border border-slate-700/80 hover:border-amber-400/60 rounded-xl p-3.5 transition-all">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
+                      1
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                        <ClipboardCheck className="w-4 h-4 text-amber-400" />
+                        Colar Print do Pix
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Tirou print da tela do banco? Clique abaixo para colar direto, ou pressione <kbd className="bg-slate-800 text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-slate-700">Ctrl+V</kbd>.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleColarClipboard}
+                        disabled={colandoClipboard}
+                        className="mt-2.5 w-full py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-amber-400/40 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer"
+                      >
+                        <ClipboardCheck className="w-4 h-4 text-amber-400" />
+                        <span>{colandoClipboard ? 'Lendo área de transferência...' : 'Colar Print Copiado'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* OPÇÃO 2: TIRAR FOTO OU ESCOLHER DA GALERIA */}
+                <div className="bg-slate-900/80 border border-slate-700/80 hover:border-emerald-400/60 rounded-xl p-3.5 transition-all">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-xs shrink-0">
+                      2
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                        <Camera className="w-4 h-4 text-emerald-400" />
+                        Tirar Foto ou Escolher da Galeria
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Tire foto do comprovante com a câmera ou selecione da galeria/PDF do celular.
+                      </p>
+                      <label className="mt-2.5 w-full py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer">
+                        <Camera className="w-4 h-4 text-emerald-400" />
+                        <span>Tirar Foto / Escolher Arquivo</span>
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={handleArquivoComprovante}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* OPÇÃO 3: ENVIAR PELO WHATSAPP DA APP */}
+                <div className="bg-slate-900/80 border border-slate-700/80 hover:border-emerald-400/60 rounded-xl p-3.5 transition-all">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
+                      3
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                        <MessageCircle className="w-4 h-4 text-emerald-400" />
+                        Enviar pelo WhatsApp da APP
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Prefere enviar pelo WhatsApp? O link abre direto com os dados do pedido já preenchidos.
+                      </p>
+                      <a
+                        href={whatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2.5 w-full py-2.5 px-3 rounded-lg bg-emerald-700/40 hover:bg-emerald-700/60 border border-emerald-500/40 text-emerald-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                      >
+                        <MessageCircle className="w-4 h-4 text-emerald-300" />
+                        <span>WhatsApp da APP ({WHATSAPP_APP})</span>
+                        <ExternalLink className="w-3.5 h-3.5 text-emerald-300 ml-auto" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                {/* OPÇÃO 4: RASTREAMENTO AUTOMÁTICO PELO CÓDIGO NL-XXXX */}
+                <div className="bg-slate-900/90 border border-amber-400/30 rounded-xl p-3.5">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
+                      4
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-bold text-amber-300 flex items-center gap-1.5">
+                        <Info className="w-4 h-4 text-amber-400" />
+                        Rastreamento Automático pelo Código {pedidoCriado.codigoPedido}
+                      </h4>
+                      <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                        Não consegue enviar o comprovante agora? Fique tranquilo! O código <strong className="text-white bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">{formatCodigoPixTxid(pedidoCriado.codigoPedido)}</strong> foi embutido no Pix. A tesouraria da APP localiza seu depósito no extrato bancário e valida os tickets do aluno automaticamente.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { initDb } from './db.js';
 import { importData } from './import-data.js';
+import { importarTurmasEAlunosOficiais } from './seed-turmas-alunos-oficiais.js';
 import routes from './routes.js';
 
 const app = express();
@@ -15,6 +16,7 @@ app.use(express.json());
 // Initialize SQLite database and seed if empty
 initDb();
 importData();
+importarTurmasEAlunosOficiais();
 
 // Register API routes
 app.use('/api', routes);
