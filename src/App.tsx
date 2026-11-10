@@ -15,8 +15,28 @@ import { BackupCenter } from './pages/BackupCenter';
 import { FirebaseConfig } from './pages/FirebaseConfig';
 import { Login } from './pages/Login';
 import { NatalLuz } from './pages/NatalLuz';
+import { PedidoNatalPublico } from './pages/PedidoNatalPublico';
 
 export default function App() {
+  // Verificação de rota pública para o Pedido do Natal Luz (sem login e sem menu contábil)
+  const isPublicNatal = (() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const pathname = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '');
+      return (
+        urlParams.get('tab') === 'pedido-natal' ||
+        urlParams.get('tab') === 'natal-publico' ||
+        urlParams.get('pedido') === 'natal' ||
+        pathname === '/pedido-natal' ||
+        pathname === '/natal' ||
+        hash === 'pedido-natal' ||
+        hash === 'natal'
+      );
+    } catch {
+      return false;
+    }
+  })();
   const [activeTab, setActiveTab] = useState(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -101,6 +121,11 @@ export default function App() {
         setTimeout(() => setToastMessage(null), 3000);
       });
   };
+
+  // Rota pública independente para os pais comprarem no Natal Luz (Sem login e sem sistema contábil)
+  if (isPublicNatal) {
+    return <PedidoNatalPublico />;
+  }
 
   if (!currentUser || currentUser.status === 'blocked' || currentUser.status === 'pending') {
     return <Login onLoginSuccess={handleLoginSuccess} />;

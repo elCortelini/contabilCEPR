@@ -1145,6 +1145,35 @@ export const api = {
     return { success: true, id, ticketEntregue };
   },
 
+  async updateNatalStatus(id: number, status: string, motivoRecusa?: string) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.updateDocument('comandas_natal', id, { 
+        status, 
+        motivoRecusa: motivoRecusa || null,
+        ticketEntregue: status === 'entregue'
+      });
+      return { success: true, id, status };
+    }
+    if (!IS_STATIC) {
+      try {
+        const res = await fetch(`/api/natal/comandas/${id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status, motivoRecusa })
+        });
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Fallback local para atualização de status:', e);
+      }
+    }
+    const current = getStorage('comandas_natal', []);
+    const updated = current.map((c: any) =>
+      Number(c.id) === Number(id) ? { ...c, status, motivoRecusa: motivoRecusa || null, ticketEntregue: status === 'entregue' } : c
+    );
+    setStorage('comandas_natal', updated);
+    return { success: true, id, status };
+  },
+
   async updateMultipleNatalTickets(ids: number[], ticketEntregue: boolean) {
     const idList = ids.map(Number);
     if (firebaseApi.isConfigured()) {

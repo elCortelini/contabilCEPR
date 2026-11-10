@@ -104,3 +104,11 @@ export const CHAVE_PIX_CEPR = 'cepr@edu.itajai.sc.gov.br';
 export const NOME_RECEBEDOR_PIX = 'CE PEDRO RIZZI';
 export const CIDADE_PIX = 'ITAJAI';
 export const WHATSAPP_APP = '(47) 99675-2537';
+export const WHATSAPP_APP_RAW = '5547996752537';
+
+/**
+ * Converte o código amigável (ex: 'NL-0042') para o formato de TXID do BACEN (ex: 'NL0042')
+ */
+export function formatCodigoPixTxid(codigo: string): string {
+  return codigo.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}

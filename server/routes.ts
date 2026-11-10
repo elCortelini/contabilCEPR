@@ -777,15 +777,194 @@ router.get('/relatorios/export-csv', (req, res) => {
 });
 
 // ==========================================
-// MÓDULO NATAL LUZ - VENDAS & COMANDAS
+// MÓDULO NATAL LUZ - ROTAS PÚBLICAS (PAIS)
 // ==========================================
 
-// Listar todas as comandas
+// Listar turmas para o formulário público dos pais
+router.get('/public/turmas', (req, res) => {
+  try {
+    const turmas = db.prepare('SELECT id, nome, anoLetivo, turno FROM turmas ORDER BY nome ASC').all();
+    res.json(turmas);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Listar alunos apenas da turma selecionada (leve para não travar com 1000 alunos)
+router.get('/public/turmas/:turma/alunos', (req, res) => {
+  try {
+    const { turma } = req.params;
+    const alunos = db.prepare(`
+      SELECT a.id, a.nome, a.responsavel, a.contato, t.nome as turmaNome
+      FROM alunos a
+      JOIN turmas t ON a.turmaId = t.id
+      WHERE t.id = ? OR t.nome = ?
+      ORDER BY a.nome ASC
+    `).all(turma, turma);
+    res.json(alunos);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Criar pedido vindo do formulário público dos pais
+router.post('/public/natal/pedidos', (req, res) => {
+  try {
+    const {
+      estudante,
+      turma,
+      professor,
+      responsavel,
+      telefone,
+      itens,
+      total,
+      formaPagamento,
+      pixPayload,
+      comprovante
+    } = req.body;
+
+    const agora = new Date().toISOString();
+    const statusInicial = comprovante ? 'pendente_conferencia' : 'aguardando_comprovante';
+
+    // Inserir primeiro para obter o ID único
+    const stmt = db.prepare(`
+      INSERT INTO comandas_natal (
+        estudante, turma, professor, responsavel, telefone,
+        itensJson, total, formaPagamento, status, ticketEntregue,
+        comprovante, pixPayload, criadaEm, atualizadaEm
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+    `);
+
+    const result = stmt.run(
+      estudante || '',
+      turma || '',
+      professor || '',
+      responsavel || '',
+      telefone || '',
+      JSON.stringify(itens || []),
+      parseFloat(total) || 0,
+      formaPagamento || 'pix',
+      statusInicial,
+      comprovante || null,
+      pixPayload || '',
+      agora,
+      agora
+    );
+
+    const id = result.lastInsertRowid;
+    // Formatar código amigável: NL-0001, NL-0042 etc.
+    const codigoPedido = `NL-${String(id).padStart(4, '0')}`;
+    
+    // Atualizar o pedido com o código gerado
+    db.prepare('UPDATE comandas_natal SET codigoPedido = ? WHERE id = ?').run(codigoPedido, id);
+
+    res.json({
+      success: true,
+      id,
+      codigoPedido,
+      status: statusInicial,
+      message: 'Pedido criado com sucesso!',
+      pedido: {
+        id,
+        codigoPedido,
+        estudante,
+        turma,
+        responsavel,
+        telefone,
+        itens,
+        total: parseFloat(total) || 0,
+        status: statusInicial,
+        comprovante: Boolean(comprovante),
+        criadaEm: agora
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Anexar ou atualizar comprovante de um pedido existente
+router.post('/public/natal/pedidos/:id/comprovante', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { comprovante } = req.body;
+    const agora = new Date().toISOString();
+
+    if (!comprovante) {
+      return res.status(400).json({ error: 'Nenhum comprovante foi enviado.' });
+    }
+
+    db.prepare(`
+      UPDATE comandas_natal
+      SET comprovante = ?, status = 'pendente_conferencia', atualizadaEm = ?
+      WHERE id = ? OR codigoPedido = ?
+    `).run(comprovante, agora, id, id);
+
+    res.json({
+      success: true,
+      message: 'Comprovante recebido com sucesso! Pedido aguardando conferência.'
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Consultar status de um pedido pelo ID ou código (ex: NL-0042)
+router.get('/public/natal/pedidos/:identificador', (req, res) => {
+  try {
+    const { identificador } = req.params;
+    const cleanId = identificador.trim().toUpperCase();
+    const pedido = db.prepare(`
+      SELECT id, codigoPedido, estudante, turma, responsavel, total, status, ticketEntregue, criadaEm, motivoRecusa,
+             CASE WHEN comprovante IS NOT NULL AND comprovante != '' THEN 1 ELSE 0 END as temComprovante
+      FROM comandas_natal
+      WHERE id = ? OR codigoPedido = ?
+    `).get(identificador, cleanId);
+
+    if (!pedido) {
+      return res.status(404).json({ error: 'Pedido não encontrado.' });
+    }
+
+    res.json(pedido);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// MÓDULO NATAL LUZ - GESTÃO ESCOLAR
+// ==========================================
+
+// Listar todas as comandas (com suporte a busca por código, filtro de status e turma)
 router.get('/natal/comandas', (req, res) => {
   try {
-    const comandas = db.prepare('SELECT * FROM comandas_natal ORDER BY id DESC').all();
+    const { status, turma, search } = req.query;
+    let query = 'SELECT * FROM comandas_natal WHERE 1=1';
+    const params: any[] = [];
+
+    if (status && status !== 'todos') {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+
+    if (turma && turma !== 'todas') {
+      query += ' AND turma = ?';
+      params.push(turma);
+    }
+
+    if (search) {
+      query += ' AND (codigoPedido LIKE ? OR estudante LIKE ? OR responsavel LIKE ? OR telefone LIKE ?)';
+      const term = `%${search}%`;
+      params.push(term, term, term, term);
+    }
+
+    query += ' ORDER BY id DESC';
+
+    const comandas = db.prepare(query).all(...params);
     const parsed = (comandas as any[]).map(c => ({
       ...c,
+      codigoPedido: c.codigoPedido || `NL-${String(c.id).padStart(4, '0')}`,
+      status: c.status || (c.ticketEntregue ? 'entregue' : 'pago'),
       itens: JSON.parse(c.itensJson || '[]'),
       ticketEntregue: Boolean(c.ticketEntregue)
     }));
@@ -795,7 +974,7 @@ router.get('/natal/comandas', (req, res) => {
   }
 });
 
-// Criar nova comanda
+// Criar nova comanda pela gestão da escola (manual)
 router.post('/natal/comandas', (req, res) => {
   try {
     const {
@@ -808,16 +987,19 @@ router.post('/natal/comandas', (req, res) => {
       total,
       formaPagamento,
       ticketEntregue,
+      status,
       pixPayload
     } = req.body;
 
     const agora = new Date().toISOString();
+    const statusFinal = status || (formaPagamento === 'dinheiro' ? 'pago' : 'pago');
+
     const stmt = db.prepare(`
       INSERT INTO comandas_natal (
         estudante, turma, professor, responsavel, telefone,
-        itensJson, total, formaPagamento, ticketEntregue,
+        itensJson, total, formaPagamento, status, ticketEntregue,
         pixPayload, criadaEm, atualizadaEm
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
@@ -829,17 +1011,24 @@ router.post('/natal/comandas', (req, res) => {
       JSON.stringify(itens || []),
       parseFloat(total) || 0,
       formaPagamento || 'pix',
+      statusFinal,
       ticketEntregue ? 1 : 0,
       pixPayload || '',
       agora,
       agora
     );
 
+    const id = result.lastInsertRowid;
+    const codigoPedido = `NL-${String(id).padStart(4, '0')}`;
+    db.prepare('UPDATE comandas_natal SET codigoPedido = ? WHERE id = ?').run(codigoPedido, id);
+
     res.json({
-      id: result.lastInsertRowid,
+      id,
+      codigoPedido,
       message: 'Comanda registrada com sucesso!',
       comanda: {
-        id: result.lastInsertRowid,
+        id,
+        codigoPedido,
         estudante,
         turma,
         professor,
@@ -848,11 +1037,33 @@ router.post('/natal/comandas', (req, res) => {
         itens,
         total: parseFloat(total) || 0,
         formaPagamento,
+        status: statusFinal,
         ticketEntregue: Boolean(ticketEntregue),
         pixPayload,
         criadaEm: agora
       }
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Alterar Status da Comanda (Aprovar, Recusar, Marcar Entregue)
+router.patch('/natal/comandas/:id/status', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, motivoRecusa } = req.body;
+    const agora = new Date().toISOString();
+
+    const ticketEntregue = status === 'entregue' ? 1 : 0;
+
+    db.prepare(`
+      UPDATE comandas_natal
+      SET status = ?, motivoRecusa = ?, ticketEntregue = CASE WHEN ? = 1 THEN 1 ELSE ticketEntregue END, atualizadaEm = ?
+      WHERE id = ?
+    `).run(status, motivoRecusa || null, ticketEntregue, agora, id);
+
+    res.json({ success: true, id, status, motivoRecusa });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -864,14 +1075,15 @@ router.patch('/natal/comandas/:id/ticket', (req, res) => {
     const { id } = req.params;
     const { ticketEntregue } = req.body;
     const agora = new Date().toISOString();
+    const novoStatus = ticketEntregue ? 'entregue' : 'pago';
 
     db.prepare(`
       UPDATE comandas_natal
-      SET ticketEntregue = ?, atualizadaEm = ?
+      SET ticketEntregue = ?, status = ?, atualizadaEm = ?
       WHERE id = ?
-    `).run(ticketEntregue ? 1 : 0, agora, id);
+    `).run(ticketEntregue ? 1 : 0, novoStatus, agora, id);
 
-    res.json({ success: true, id, ticketEntregue: Boolean(ticketEntregue) });
+    res.json({ success: true, id, ticketEntregue: Boolean(ticketEntregue), status: novoStatus });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -898,38 +1110,53 @@ router.get('/natal/resumo', (req, res) => {
     let totalDinheiro = 0;
     let ticketsEntregues = 0;
     let ticketsPendentes = 0;
+    let pedidosAguardandoComprovante = 0;
+    let pedidosPendentesConferencia = 0;
+    let pedidosPagos = 0;
 
     const produtosContagem: Record<string, { nome: string; quantidade: number; valorTotal: number }> = {};
 
     for (const c of comandas) {
+      const status = c.status || (c.ticketEntregue ? 'entregue' : 'pago');
       const val = parseFloat(c.total) || 0;
-      faturamentoTotal += val;
-      if (c.formaPagamento === 'dinheiro') {
-        totalDinheiro += val;
-      } else {
-        totalPix += val;
+
+      if (status === 'aguardando_comprovante') {
+        pedidosAguardandoComprovante++;
+      } else if (status === 'pendente_conferencia') {
+        pedidosPendentesConferencia++;
+      } else if (status === 'pago' || status === 'entregue') {
+        pedidosPagos++;
+        faturamentoTotal += val;
+        if (c.formaPagamento === 'dinheiro') {
+          totalDinheiro += val;
+        } else {
+          totalPix += val;
+        }
       }
 
-      if (c.ticketEntregue) {
+      if (c.ticketEntregue || status === 'entregue') {
         ticketsEntregues++;
       } else {
         ticketsPendentes++;
       }
 
-      try {
-        const itens = JSON.parse(c.itensJson || '[]');
-        for (const item of itens) {
-          const nome = item.nome || 'Item';
-          const qtd = parseInt(item.quantidade) || 0;
-          const subtotal = parseFloat(item.subtotal) || 0;
-          if (!produtosContagem[nome]) {
-            produtosContagem[nome] = { nome, quantidade: 0, valorTotal: 0 };
+      // Contabiliza produtos de pedidos confirmados (pagos ou entregues) ou em conferência
+      if (status === 'pago' || status === 'entregue' || status === 'pendente_conferencia') {
+        try {
+          const itens = JSON.parse(c.itensJson || '[]');
+          for (const item of itens) {
+            const nome = item.nome || 'Item';
+            const qtd = parseInt(item.quantidade) || 0;
+            const subtotal = parseFloat(item.subtotal || item.total) || 0;
+            if (!produtosContagem[nome]) {
+              produtosContagem[nome] = { nome, quantidade: 0, valorTotal: 0 };
+            }
+            produtosContagem[nome].quantidade += qtd;
+            produtosContagem[nome].valorTotal += subtotal;
           }
-          produtosContagem[nome].quantidade += qtd;
-          produtosContagem[nome].valorTotal += subtotal;
+        } catch (e) {
+          // Ignora item com json corrompido
         }
-      } catch (e) {
-        // Ignora erro de parse em item corrompido
       }
     }
 
@@ -940,6 +1167,9 @@ router.get('/natal/resumo', (req, res) => {
       totalDinheiro,
       ticketsEntregues,
       ticketsPendentes,
+      pedidosAguardandoComprovante,
+      pedidosPendentesConferencia,
+      pedidosPagos,
       produtos: Object.values(produtosContagem)
     });
   } catch (error: any) {

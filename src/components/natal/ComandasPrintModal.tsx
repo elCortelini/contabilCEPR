@@ -12,6 +12,7 @@ interface ItemComanda {
 
 interface ComandaParaImpressao {
   id: number | string;
+  codigoPedido?: string;
   estudante: string;
   turma?: string;
   professor?: string;
@@ -20,22 +21,26 @@ interface ComandaParaImpressao {
   itens: ItemComanda[];
   total: number;
   formaPagamento: 'pix' | 'dinheiro' | string;
+  status?: string;
   ticketEntregue?: boolean;
   criadaEm?: string;
 }
 
 interface ComandasPrintModalProps {
   comandas: ComandaParaImpressao[];
+  turmaFiltro?: string;
   onClose: () => void;
   onConfirmPrint: (marcarComoEntregue: boolean) => Promise<void>;
 }
 
 export const ComandasPrintModal: React.FC<ComandasPrintModalProps> = ({
   comandas,
+  turmaFiltro,
   onClose,
   onConfirmPrint,
 }) => {
   const [marcarEntregue, setMarcarEntregue] = useState(true);
+  const [incluirProtocolo, setIncluirProtocolo] = useState(true);
   const [processando, setProcessando] = useState(false);
 
   // Divide as comandas em blocos de 4 por folha A4
@@ -95,6 +100,16 @@ export const ComandasPrintModal: React.FC<ComandasPrintModalProps> = ({
           <label className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700/80 px-3 py-2 rounded-xl border border-slate-600 text-xs text-slate-200 cursor-pointer select-none transition">
             <input
               type="checkbox"
+              checked={incluirProtocolo}
+              onChange={(e) => setIncluirProtocolo(e.target.checked)}
+              className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 bg-slate-900 border-slate-600 cursor-pointer"
+            />
+            <span className="font-semibold text-amber-300">Incluir Folha de Rosto / Protocolo da Turma</span>
+          </label>
+
+          <label className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700/80 px-3 py-2 rounded-xl border border-slate-600 text-xs text-slate-200 cursor-pointer select-none transition">
+            <input
+              type="checkbox"
               checked={marcarEntregue}
               onChange={(e) => setMarcarEntregue(e.target.checked)}
               className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 bg-slate-900 border-slate-600 cursor-pointer"
@@ -124,6 +139,94 @@ export const ComandasPrintModal: React.FC<ComandasPrintModalProps> = ({
 
       {/* ÁREA DE IMPRESSÃO (Folhas A4) */}
       <div className="w-full max-w-5xl space-y-6 print:space-y-0 print:max-w-none print:w-full">
+        {/* Folha de Rosto / Protocolo de Entrega da Turma para o Professor Assinar */}
+        {incluirProtocolo && (
+          <div
+            className="bg-white text-slate-900 rounded-2xl p-6 sm:p-8 shadow-2xl border border-slate-300 print:border-none print:shadow-none print:p-6 print:rounded-none page-break-comandas flex flex-col justify-between"
+            style={{ minHeight: '270mm' }}
+          >
+            <div>
+              <div className="border-b-2 border-slate-900 pb-3 mb-4 flex justify-between items-center">
+                <div>
+                  <h1 className="text-xl font-black uppercase text-slate-950">
+                    CE Pedro Rizzi • Natal Luz 2026
+                  </h1>
+                  <h2 className="text-sm font-bold text-emerald-800 uppercase tracking-wider">
+                    Protocolo de Entrega de Comandas / Vale-Lanches
+                  </h2>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-bold text-slate-700 block">
+                    Turma: <strong className="text-slate-950 text-sm">{turmaFiltro && turmaFiltro !== 'todas' ? turmaFiltro : 'Geral'}</strong>
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    Total: <strong>{comandas.length}</strong> comanda(s)
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 mb-4 italic">
+                Sr(a). Professor(a), favor conferir as comandas entregues para os alunos desta turma e assinar a lista abaixo.
+              </p>
+
+              {/* Tabela de Alunos e Assinaturas */}
+              <div className="border border-slate-300 rounded-lg overflow-hidden">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[10px]">
+                      <th className="p-2 w-16">Código</th>
+                      <th className="p-2">Aluno(a)</th>
+                      <th className="p-2">Itens Adquiridos</th>
+                      <th className="p-2 w-20 text-right">Valor</th>
+                      <th className="p-2 w-48 text-center">Visto / Assinatura do Aluno</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comandas.map((c, i) => {
+                      const itensTexto = (Array.isArray(c.itens) ? c.itens : []).map(it => `${it.quantidade}x ${it.nome}`).join(', ');
+                      return (
+                        <tr key={c.id} className={`border-b border-slate-200 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                          <td className="p-2 font-mono font-bold text-slate-800">
+                            {c.codigoPedido || `#${c.id}`}
+                          </td>
+                          <td className="p-2 font-bold text-slate-950">
+                            {c.estudante}
+                          </td>
+                          <td className="p-2 text-slate-700 text-[11px]">
+                            {itensTexto || 'Sem itens'}
+                          </td>
+                          <td className="p-2 font-semibold text-slate-900 text-right">
+                            {formatarMoeda(c.total)}
+                          </td>
+                          <td className="p-2 border-l border-slate-200">
+                            <div className="h-5 border-b border-dotted border-slate-400"></div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Rodapé de Assinatura da Turma */}
+            <div className="pt-6 border-t border-slate-400 mt-6 grid grid-cols-2 gap-8 text-xs text-slate-700">
+              <div>
+                <p>Data de Entrega em Sala: _____/_____/2026</p>
+                <div className="mt-8 border-t border-slate-800 pt-1 text-center font-bold">
+                  Assinatura do(a) Professor(a) / Responsável da Turma
+                </div>
+              </div>
+              <div>
+                <p>Responsável pelo Despacho da Secretaria: CEPR</p>
+                <div className="mt-8 border-t border-slate-800 pt-1 text-center font-bold">
+                  Visto da Associação de Pais e Professores (APP)
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {paginas.map((paginaComandas, idxPagina) => (
           <div
             key={idxPagina}
@@ -168,7 +271,7 @@ export const ComandasPrintModal: React.FC<ComandasPrintModalProps> = ({
                           </div>
                           <div className="text-right">
                             <span className="text-base font-black text-slate-950 font-mono block">
-                              #{cmd.id.toString().padStart(5, '0')}
+                              {cmd.codigoPedido || `#${cmd.id.toString().padStart(5, '0')}`}
                             </span>
                             <span className="text-[9px] text-slate-500">
                               {cmd.criadaEm

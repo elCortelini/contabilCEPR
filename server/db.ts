@@ -154,6 +154,7 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS comandas_natal (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      codigoPedido TEXT,
       estudante TEXT NOT NULL,
       turma TEXT,
       professor TEXT,
@@ -162,7 +163,10 @@ export function initDb() {
       itensJson TEXT NOT NULL,
       total REAL NOT NULL,
       formaPagamento TEXT NOT NULL DEFAULT 'pix',
+      status TEXT DEFAULT 'aguardando_comprovante',
       ticketEntregue INTEGER DEFAULT 0,
+      comprovante TEXT,
+      motivoRecusa TEXT,
       pixPayload TEXT,
       criadaEm TEXT,
       atualizadaEm TEXT
@@ -191,6 +195,34 @@ export function initDb() {
     }
   } catch (e) {
     console.error("Erro ao verificar coluna status na tabela users:", e);
+  }
+
+  // Safely add columns to comandas_natal if missing in existing database
+  try {
+    const comandasInfo = db.prepare("PRAGMA table_info(comandas_natal)").all() as any[];
+    const colNames = comandasInfo.map(c => c.name);
+
+    if (!colNames.includes('codigoPedido')) {
+      db.exec("ALTER TABLE comandas_natal ADD COLUMN codigoPedido TEXT");
+      // Preencher códigos para comandas legadas
+      db.exec("UPDATE comandas_natal SET codigoPedido = 'NL-' || printf('%04d', id) WHERE codigoPedido IS NULL");
+      console.log("✅ Coluna 'codigoPedido' adicionada à tabela comandas_natal.");
+    }
+    if (!colNames.includes('status')) {
+      db.exec("ALTER TABLE comandas_natal ADD COLUMN status TEXT DEFAULT 'pago'");
+      db.exec("UPDATE comandas_natal SET status = CASE WHEN ticketEntregue = 1 THEN 'entregue' ELSE 'pago' END WHERE status IS NULL");
+      console.log("✅ Coluna 'status' adicionada à tabela comandas_natal.");
+    }
+    if (!colNames.includes('comprovante')) {
+      db.exec("ALTER TABLE comandas_natal ADD COLUMN comprovante TEXT");
+      console.log("✅ Coluna 'comprovante' adicionada à tabela comandas_natal.");
+    }
+    if (!colNames.includes('motivoRecusa')) {
+      db.exec("ALTER TABLE comandas_natal ADD COLUMN motivoRecusa TEXT");
+      console.log("✅ Coluna 'motivoRecusa' adicionada à tabela comandas_natal.");
+    }
+  } catch (e) {
+    console.error("Erro ao verificar colunas da tabela comandas_natal:", e);
   }
 }
 

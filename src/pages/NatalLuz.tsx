@@ -28,7 +28,13 @@ import {
   CheckSquare,
   Square,
   Filter,
-  Users
+  Users,
+  MessageCircle,
+  ExternalLink,
+  Eye,
+  CheckCheck,
+  XCircle,
+  FileText
 } from 'lucide-react';
 import { api } from '../services/api';
 import { 
@@ -70,13 +76,20 @@ export const NatalLuz: React.FC = () => {
   // Listagem & Filtros (Aba Comandas)
   const [comandas, setComandas] = useState<any[]>([]);
   const [busca, setBusca] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'pendente_conferencia' | 'pago' | 'entregue' | 'aguardando_comprovante' | 'recusado'>('todos');
   const [filtroTicket, setFiltroTicket] = useState<'todos' | 'entregue' | 'pendente'>('todos');
   const [filtroTurma, setFiltroTurma] = useState<string>('todas');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   // Modais de Impressão
   const [modalImpressaoComandas, setModalImpressaoComandas] = useState(false);
+  const [turmaImpressaoLote, setTurmaImpressaoLote] = useState<string>('todas');
   const [modalBalancete, setModalBalancete] = useState(false);
+
+  // Modal de Comprovante (Lightbox)
+  const [modalComprovante, setModalComprovante] = useState<any | null>(null);
+  const [motivoRecusaInput, setMotivoRecusaInput] = useState('');
+  const [mostrarRecusaField, setMostrarRecusaField] = useState(false);
 
   // Filtros da Aba Arrecadação
   const [filtroFormaArrecadacao, setFiltroFormaArrecadacao] = useState<'todas' | 'pix' | 'dinheiro'>('todas');
@@ -88,6 +101,7 @@ export const NatalLuz: React.FC = () => {
   const [copiadoPix, setCopiadoPix] = useState(false);
   const [copiadoTexto, setCopiadoTexto] = useState(false);
   const [copiadoLink, setCopiadoLink] = useState(false);
+  const [copiadoTextoPais, setCopiadoTextoPais] = useState(false);
   const [mostrarQrCodeModal, setMostrarQrCodeModal] = useState(false);
 
   const handleCopiarLinkExclusivo = () => {
@@ -96,6 +110,30 @@ export const NatalLuz: React.FC = () => {
     navigator.clipboard.writeText(urlExclusiva);
     setCopiadoLink(true);
     setTimeout(() => setCopiadoLink(false), 2500);
+  };
+
+  // Copiar mensagem completa com link público para os pais no WhatsApp
+  const handleCopiarTextoPais = () => {
+    const baseUrl = window.location.origin + window.location.pathname;
+    const linkPublico = `${baseUrl}?tab=pedido-natal`;
+
+    const texto = `🎄 *CENTRO EDUCACIONAL PEDRO RIZZI* 🎄\n` +
+      `✨ *NATAL LUZ 2026 - COMPRA ANTECIPADA DE COMANDAS* ✨\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Senhores pais e responsáveis,\n\n` +
+      `Já está disponível o link para a compra antecipada das comandas de lanches, pasteis, doces e bebidas para o nosso evento de Natal!\n\n` +
+      `👉 *FAÇA SEU PEDIDO AQUI:* ${linkPublico}\n\n` +
+      `📌 *Como funciona:*\n` +
+      `1️⃣ Selecione a turma e o nome do seu filho;\n` +
+      `2️⃣ Escolha os itens do cardápio;\n` +
+      `3️⃣ Pague pelo Pix oficial da escola com o código do seu pedido;\n` +
+      `4️⃣ Anexe o comprovante direto na tela (ou envie no WhatsApp da APP ${WHATSAPP_APP}).\n\n` +
+      `🎟️ *Importante:* Os tickets impressos serão entregues diretamente para o aluno na sala de aula antes da festa!\n\n` +
+      `Contamos com o apoio de todos! ❤️✨`;
+
+    navigator.clipboard.writeText(texto);
+    setCopiadoTextoPais(true);
+    setTimeout(() => setCopiadoTextoPais(false), 3000);
   };
 
   // Resumo da Cozinha
@@ -383,14 +421,87 @@ export const NatalLuz: React.FC = () => {
     return Array.from(set).sort();
   }, [comandas]);
 
+  // Aprovar comprovante e confirmar pagamento (1 clique)
+  const handleAprovarComanda = async (id: number) => {
+    try {
+      await api.updateNatalStatus(id, 'pago');
+      setComandas((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, status: 'pago' } : c))
+      );
+      if (modalComprovante && modalComprovante.id === id) {
+        setModalComprovante(null);
+      }
+      api.getNatalResumo().then((res) => setResumoCozinha(res));
+    } catch (e) {
+      console.error('Erro ao aprovar comanda:', e);
+      alert('Erro ao aprovar pagamento.');
+    }
+  };
+
+  // Recusar comprovante informando motivo opcional
+  const handleRecusarComanda = async (id: number) => {
+    try {
+      await api.updateNatalStatus(id, 'recusado', motivoRecusaInput.trim() || 'Comprovante ilegível ou incorreto');
+      setComandas((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, status: 'recusado', motivoRecusa: motivoRecusaInput.trim() || 'Comprovante ilegível ou incorreto' } : c))
+      );
+      setModalComprovante(null);
+      setMostrarRecusaField(false);
+      setMotivoRecusaInput('');
+      api.getNatalResumo().then((res) => setResumoCozinha(res));
+    } catch (e) {
+      console.error('Erro ao recusar comanda:', e);
+      alert('Erro ao recusar comanda.');
+    }
+  };
+
+  // Imprimir lote da turma
+  const handleImprimirLoteTurma = (nomeTurma: string) => {
+    const daTurma = comandas.filter(c => 
+      (c.turma || '').trim().toLowerCase() === nomeTurma.trim().toLowerCase() &&
+      (c.status === 'pago' || c.status === 'entregue' || c.ticketEntregue)
+    );
+    if (daTurma.length === 0) {
+      alert(`Nenhuma comanda paga ou pronta para imprimir na turma "${nomeTurma}".`);
+      return;
+    }
+    setSelectedIds(daTurma.map(c => Number(c.id)));
+    setTurmaImpressaoLote(nomeTurma);
+    setModalImpressaoComandas(true);
+  };
+
+  // Contadores para badges e alertas
+  const contadoresStatus = useMemo(() => {
+    let pendentesConferencia = 0;
+    let pagos = 0;
+    let entregues = 0;
+    let aguardando = 0;
+
+    comandas.forEach(c => {
+      const st = c.status || (c.ticketEntregue ? 'entregue' : 'pago');
+      if (st === 'pendente_conferencia') pendentesConferencia++;
+      else if (st === 'pago') pagos++;
+      else if (st === 'entregue') entregues++;
+      else if (st === 'aguardando_comprovante') aguardando++;
+    });
+
+    return { pendentesConferencia, pagos, entregues, aguardando };
+  }, [comandas]);
+
   // Filtragem de comandas
   const comandasFiltradas = useMemo(() => {
     return comandas.filter((c) => {
+      const codigoLimpo = (c.codigoPedido || `NL-${String(c.id).padStart(4, '0')}`).toLowerCase();
+      const searchLimpo = busca.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
       const matchBusca =
         !busca.trim() ||
+        codigoLimpo.replace(/[^a-z0-9]/g, '').includes(searchLimpo) ||
+        (c.codigoPedido || '').toLowerCase().includes(busca.toLowerCase()) ||
         (c.estudante || '').toLowerCase().includes(busca.toLowerCase()) ||
         (c.responsavel || '').toLowerCase().includes(busca.toLowerCase()) ||
         (c.turma || '').toLowerCase().includes(busca.toLowerCase()) ||
+        (c.telefone || '').includes(busca) ||
         (c.id || '').toString().includes(busca);
 
       if (!matchBusca) return false;
@@ -399,11 +510,17 @@ export const NatalLuz: React.FC = () => {
         return false;
       }
 
-      if (filtroTicket === 'entregue') return c.ticketEntregue;
-      if (filtroTicket === 'pendente') return !c.ticketEntregue;
+      // Filtro de Status
+      const st = c.status || (c.ticketEntregue ? 'entregue' : 'pago');
+      if (filtroStatus !== 'todos') {
+        if (filtroStatus !== st) return false;
+      }
+
+      if (filtroTicket === 'entregue') return c.ticketEntregue || st === 'entregue';
+      if (filtroTicket === 'pendente') return !c.ticketEntregue && st !== 'entregue';
       return true;
     });
-  }, [comandas, busca, filtroTicket, filtroTurma]);
+  }, [comandas, busca, filtroStatus, filtroTicket, filtroTurma]);
 
   // Gerenciamento de seleção para impressão
   const handleToggleSelectAll = () => {
@@ -586,14 +703,41 @@ export const NatalLuz: React.FC = () => {
                 <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
                 CE PEDRO RIZZI
               </div>
+
+              {/* Botão para copiar texto pronto com link de WhatsApp para enviar nos grupos de pais */}
               <button
-                onClick={handleCopiarLinkExclusivo}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 text-xs font-bold transition cursor-pointer shadow-sm active:scale-95"
-                title="Copiar link exclusivo do Natal Luz para enviar à administradora"
+                onClick={handleCopiarTextoPais}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition cursor-pointer shadow-lg active:scale-95"
+                title="Copiar texto pronto com link para enviar nos grupos de pais do WhatsApp"
               >
-                {copiadoLink ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Share2 className="w-3.5 h-3.5 text-emerald-300" />}
-                <span>{copiadoLink ? 'Link Copiado!' : 'Compartilhar Link'}</span>
+                {copiadoTextoPais ? <Check className="w-3.5 h-3.5 text-emerald-900" /> : <MessageCircle className="w-3.5 h-3.5" />}
+                <span>{copiadoTextoPais ? 'Mensagem Copiada!' : '📱 Link p/ Grupo de Pais WhatsApp'}</span>
               </button>
+
+              {/* Link para testar a página pública dos pais */}
+              <a
+                href={`${window.location.origin}${window.location.pathname}?tab=pedido-natal`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-600 text-xs font-semibold transition"
+                title="Abrir a tela pública que os pais verão no celular"
+              >
+                <ExternalLink className="w-3 h-3 text-amber-400" />
+                <span>Ver Tela dos Pais</span>
+              </a>
+
+              {contadoresStatus.pendentesConferencia > 0 && (
+                <button
+                  onClick={() => {
+                    setActiveSubTab('comandas');
+                    setFiltroStatus('pendente_conferencia');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500 hover:bg-blue-400 text-white text-xs font-black transition cursor-pointer shadow-lg animate-pulse"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{contadoresStatus.pendentesConferencia} comprovante(s) p/ conferir</span>
+                </button>
+              )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center justify-center sm:justify-start gap-2">
               <span>✨ NATAL LUZ 🎅</span>
@@ -979,16 +1123,24 @@ export const NatalLuz: React.FC = () => {
             {/* Barra de Busca e Filtros */}
             <div className="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-lg space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {/* Campo de Busca */}
+                {/* Campo de Busca Rápida (com suporte a Código #NL-0042) */}
                 <div className="relative md:col-span-2">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                  <Search className="w-4 h-4 text-amber-400 absolute left-3.5 top-3.5" />
                   <input
                     type="text"
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
-                    placeholder="Buscar por estudante, responsável, turma ou Nº..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="🔎 Buscar por Código (#NL-0042 ou 42), Aluno, Responsável ou Turma..."
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
                   />
+                  {busca && (
+                    <button
+                      onClick={() => setBusca('')}
+                      className="absolute right-3 top-3 text-xs text-slate-400 hover:text-white"
+                    >
+                      Limpar
+                    </button>
+                  )}
                 </div>
 
                 {/* Filtro por Turma */}
@@ -996,7 +1148,7 @@ export const NatalLuz: React.FC = () => {
                   <select
                     value={filtroTurma}
                     onChange={(e) => setFiltroTurma(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold cursor-pointer"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-semibold cursor-pointer"
                   >
                     <option value="todas">🏫 Todas as Turmas ({turmasDisponiveis.length})</option>
                     {turmasDisponiveis.map((t) => (
@@ -1008,52 +1160,78 @@ export const NatalLuz: React.FC = () => {
                 </div>
               </div>
 
-              {/* Filtros de Status de Entrega */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-700/60">
-                <div className="flex items-center gap-2 overflow-x-auto text-xs font-bold">
+              {/* Filtros por Status do Pedido / Conferência */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-700/60">
+                <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-bold pb-1">
                   <button
-                    onClick={() => setFiltroTicket('todos')}
+                    onClick={() => setFiltroStatus('todos')}
                     className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${
-                      filtroTicket === 'todos'
-                        ? 'bg-emerald-600 text-white'
+                      filtroStatus === 'todos'
+                        ? 'bg-amber-500 text-slate-950 font-black'
                         : 'bg-slate-900 text-slate-400 hover:text-white'
                     }`}
                   >
                     Todas ({comandas.length})
                   </button>
+
                   <button
-                    onClick={() => setFiltroTicket('pendente')}
-                    className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1 ${
-                      filtroTicket === 'pendente'
-                        ? 'bg-amber-600 text-white'
-                        : 'bg-slate-900 text-slate-400 hover:text-white'
+                    onClick={() => setFiltroStatus('pendente_conferencia')}
+                    className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 ${
+                      filtroStatus === 'pendente_conferencia'
+                        ? 'bg-blue-600 text-white font-black ring-2 ring-blue-400'
+                        : 'bg-blue-950/60 text-blue-300 border border-blue-800/40 hover:bg-blue-900/60'
                     }`}
                   >
-                    <Clock className="w-3 h-3" />
-                    <span>Pendentes de Entrega</span>
+                    <Eye className="w-3.5 h-3.5 text-blue-300" />
+                    <span>🔵 Pendentes Conferência ({contadoresStatus.pendentesConferencia})</span>
                   </button>
+
                   <button
-                    onClick={() => setFiltroTicket('entregue')}
-                    className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1 ${
-                      filtroTicket === 'entregue'
-                        ? 'bg-emerald-700 text-white'
+                    onClick={() => setFiltroStatus('pago')}
+                    className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 ${
+                      filtroStatus === 'pago'
+                        ? 'bg-emerald-600 text-white font-black'
+                        : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/40 hover:bg-emerald-900/60'
+                    }`}
+                  >
+                    <CheckCheck className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>🟢 Pagos / Pronto Imprimir ({contadoresStatus.pagos})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setFiltroStatus('entregue')}
+                    className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 ${
+                      filtroStatus === 'entregue'
+                        ? 'bg-slate-600 text-white font-black'
                         : 'bg-slate-900 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>Tickets Entregues</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
+                    <span>⚪ Entregues ({contadoresStatus.entregues})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setFiltroStatus('aguardando_comprovante')}
+                    className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 ${
+                      filtroStatus === 'aguardando_comprovante'
+                        ? 'bg-amber-700 text-white font-black'
+                        : 'bg-amber-950/40 text-amber-300 border border-amber-900/40 hover:bg-amber-900/40'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                    <span>🟡 Aguardando Comprovante ({contadoresStatus.aguardando})</span>
                   </button>
                 </div>
 
                 <span className="text-xs text-slate-400">
-                  Exibindo <strong>{comandasFiltradas.length}</strong> de {comandas.length}
+                  Exibindo <strong>{comandasFiltradas.length}</strong> pedido(s)
                 </span>
               </div>
             </div>
 
             {/* Barra de Ação em Lote: Seleção e Impressão (Lei de Fitts & Von Restorff) */}
             <div className="bg-slate-800/90 border border-emerald-500/30 rounded-2xl p-3.5 sm:p-4 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={handleToggleSelectAll}
@@ -1070,6 +1248,18 @@ export const NatalLuz: React.FC = () => {
                       : `Selecionar Filtradas (${comandasFiltradas.length})`}
                   </span>
                 </button>
+
+                {/* Botão de Atalho: Imprimir Lote da Turma Selecionada */}
+                {filtroTurma !== 'todas' && (
+                  <button
+                    type="button"
+                    onClick={() => handleImprimirLoteTurma(filtroTurma)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Imprimir Lote: {filtroTurma} + Folha de Entrega</span>
+                  </button>
+                )}
 
                 {selectedIds.length > 0 && (
                   <span className="text-xs font-semibold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2.5 py-1 rounded-lg">
@@ -1092,19 +1282,22 @@ export const NatalLuz: React.FC = () => {
                 <button
                   type="button"
                   disabled={selectedIds.length === 0}
-                  onClick={() => setModalImpressaoComandas(true)}
-                  className={`w-full sm:w-auto min-h-[48px] px-5 py-2.5 rounded-xl text-xs font-black tracking-wide flex items-center justify-center gap-2 transition shadow-xl active:scale-95 cursor-pointer ${
+                  onClick={() => {
+                    setTurmaImpressaoLote(filtroTurma);
+                    setModalImpressaoComandas(true);
+                  }}
+                  className={`w-full sm:w-auto min-h-[44px] px-5 py-2 rounded-xl text-xs font-black tracking-wide flex items-center justify-center gap-2 transition shadow-xl active:scale-95 cursor-pointer ${
                     selectedIds.length === 0
                       ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white shadow-emerald-950 border border-emerald-400/50 animate-pulse'
+                      : 'bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white shadow-emerald-950 border border-emerald-400/50'
                   }`}
-                  title="Gerar impressão de 4 comandas por folha com moldura para recorte"
+                  title="Gerar impressão das comandas selecionadas"
                 >
                   <Printer className="w-4 h-4" />
                   <span>
                     {selectedIds.length === 0
                       ? 'Selecione Comandas para Imprimir'
-                      : `Imprimir Comandas (${selectedIds.length})`}
+                      : `Imprimir Selecionadas (${selectedIds.length})`}
                   </span>
                 </button>
               </div>
@@ -1125,17 +1318,21 @@ export const NatalLuz: React.FC = () => {
                   const itensArr = Array.isArray(cmd.itens) ? cmd.itens : [];
                   const totalNum = parseFloat(cmd.total) || 0;
                   const isSelected = selectedIds.includes(Number(cmd.id));
+                  const codigoExibicao = cmd.codigoPedido || `NL-${String(cmd.id).padStart(4, '0')}`;
+                  const statusAtual = cmd.status || (cmd.ticketEntregue ? 'entregue' : 'pago');
 
                   return (
                     <div
                       key={cmd.id}
                       className={`bg-slate-800/90 border rounded-2xl p-4 shadow-md space-y-3 transition ${
-                        isSelected
+                        statusAtual === 'pendente_conferencia'
+                          ? 'border-blue-500/80 ring-2 ring-blue-500/20 bg-slate-800'
+                          : isSelected
                           ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-slate-800/95'
                           : 'border-slate-700/80 hover:border-slate-600'
                       }`}
                     >
-                      {/* Topo do Card com Checkbox de Seleção */}
+                      {/* Topo do Card com Checkbox de Seleção e Código do Pedido */}
                       <div className="flex items-start justify-between gap-3 border-b border-slate-700/60 pb-3">
                         <div className="flex items-start gap-3">
                           <input
@@ -1145,45 +1342,61 @@ export const NatalLuz: React.FC = () => {
                             className="mt-1 w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 bg-slate-900 border-slate-600 cursor-pointer"
                           />
                           <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-black text-white text-base">
-                                #{cmd.id.toString().padStart(5, '0')}
+                            <div className="flex flex-wrap items-center gap-2">
+                              {/* Código de Rastreio do Pix / Pedido */}
+                              <span className="font-mono font-black text-amber-300 text-sm px-2.5 py-0.5 rounded-lg bg-amber-400/15 border border-amber-400/40">
+                                {codigoExibicao}
                               </span>
                               <span className="text-xs text-slate-400">
                                 {cmd.criadaEm ? new Date(cmd.criadaEm).toLocaleString('pt-BR') : ''}
                               </span>
                             </div>
-                            <h3 className="font-bold text-emerald-400 text-base mt-0.5">
+                            <h3 className="font-bold text-white text-base mt-1">
                               {cmd.estudante}
                             </h3>
-                            <p className="text-xs text-slate-300">
-                              {cmd.turma && <span className="font-semibold text-amber-300">Turma: {cmd.turma} • </span>}
+                            <p className="text-xs text-slate-300 mt-0.5">
+                              {cmd.turma && <span className="font-semibold text-amber-400">Turma: {cmd.turma} • </span>}
                               Resp: <strong>{cmd.responsavel}</strong> ({cmd.telefone})
                             </p>
                           </div>
                         </div>
 
-                        {/* Badges de Status */}
+                        {/* Badges de Status do Fluxo */}
                         <div className="flex flex-col items-end gap-1.5 shrink-0">
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-xs font-black border flex items-center gap-1 ${
-                              cmd.ticketEntregue
-                                ? 'bg-emerald-950 text-emerald-300 border-emerald-500/50'
-                                : 'bg-amber-950 text-amber-300 border-amber-500/50'
-                            }`}
-                          >
-                            {cmd.ticketEntregue ? (
-                              <>
-                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                <span>Ticket Entregue</span>
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="w-3 h-3 text-amber-400" />
-                                <span>Ticket Pendente</span>
-                              </>
-                            )}
-                          </span>
+                          {statusAtual === 'pendente_conferencia' && (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-black bg-blue-950 text-blue-300 border border-blue-500/60 flex items-center gap-1 animate-pulse">
+                              <Eye className="w-3 h-3 text-blue-400" />
+                              <span>Pendente Conferência</span>
+                            </span>
+                          )}
+
+                          {statusAtual === 'pago' && (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-950 text-emerald-300 border border-emerald-500/60 flex items-center gap-1">
+                              <CheckCheck className="w-3 h-3 text-emerald-400" />
+                              <span>Pago / Pronto p/ Imprimir</span>
+                            </span>
+                          )}
+
+                          {statusAtual === 'entregue' && (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-black bg-slate-800 text-slate-300 border border-slate-600 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-slate-400" />
+                              <span>Entregue ao Aluno</span>
+                            </span>
+                          )}
+
+                          {statusAtual === 'aguardando_comprovante' && (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-black bg-amber-950 text-amber-300 border border-amber-500/60 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-amber-400" />
+                              <span>Aguardando Comprovante</span>
+                            </span>
+                          )}
+
+                          {statusAtual === 'recusado' && (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-black bg-rose-950 text-rose-300 border border-rose-500/60 flex items-center gap-1">
+                              <XCircle className="w-3 h-3 text-rose-400" />
+                              <span>Recusado</span>
+                            </span>
+                          )}
 
                           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                             {cmd.formaPagamento === 'pix' ? '💠 Pix' : '💵 Dinheiro'}
@@ -1212,14 +1425,110 @@ export const NatalLuz: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Botões de Ação Rápida */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                        {/* Botão de Alternar Ticket Entregue */}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleTicket(cmd)}
-                          className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                            cmd.ticketEntregue
+                      {/* Motivo de recusa se houver */}
+                      {cmd.motivoRecusa && (
+                        <p className="text-xs text-rose-300 bg-rose-950/40 border border-rose-900/60 rounded-lg p-2">
+                          ⚠️ <strong>Motivo da recusa:</strong> {cmd.motivoRecusa}
+                        </p>
+                      )}
+
+                      {/* Botões de Ação Rápida e Conferência */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-700/50">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {/* Visualizar Comprovante se houver */}
+                          {cmd.comprovante ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalComprovante(cmd);
+                                setMostrarRecusaField(false);
+                                setMotivoRecusaInput('');
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/50 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-blue-400" />
+                              <span>Ver Comprovante Anexado</span>
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-slate-500 italic">
+                              Sem comprovante anexado
+                            </span>
+                          )}
+
+                          {/* Botão de 1 Clique: Aprovar Pagamento se estiver pendente */}
+                          {statusAtual === 'pendente_conferencia' && (
+                            <button
+                              type="button"
+                              onClick={() => handleAprovarComanda(Number(cmd.id))}
+                              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-950 cursor-pointer active:scale-95"
+                            >
+                              <CheckCheck className="w-3.5 h-3.5" />
+                              <span>Aprovar Pagamento (1 Clique)</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {/* Botão de Alternar Ticket Entregue */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTicket(cmd)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                              cmd.ticketEntregue || statusAtual === 'entregue'
+                                ? 'bg-slate-700/70 text-slate-300 hover:bg-slate-700'
+                                : 'bg-slate-700 text-emerald-300 hover:bg-slate-600 border border-emerald-500/40'
+                            }`}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>{cmd.ticketEntregue || statusAtual === 'entregue' ? 'Desmarcar Entrega' : 'Marcar Entregue'}</span>
+                          </button>
+
+                          {/* Imprimir Comanda Individual */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedIds([Number(cmd.id)]);
+                              setTurmaImpressaoLote(cmd.turma || 'todas');
+                              setModalImpressaoComandas(true);
+                            }}
+                            className="p-2 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-bold transition flex items-center gap-1"
+                            title="Imprimir esta comanda"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Imprimir</span>
+                          </button>
+
+                          {/* Reenviar WhatsApp */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const texto = gerarTextoWhatsApp(cmd.id, cmd.pixPayload);
+                              handleAbrirWhatsApp(cmd.telefone, texto);
+                            }}
+                            className="p-2 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/50 text-xs font-bold transition flex items-center gap-1"
+                            title="Reenviar resumo pelo WhatsApp"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Excluir comanda */}
+                          <button
+                            type="button"
+                            onClick={() => handleExcluirComanda(Number(cmd.id))}
+                            className="p-2 rounded-xl text-rose-400 hover:text-white hover:bg-rose-950/50 border border-transparent hover:border-rose-800 transition"
+                            title="Excluir comanda"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
                               ? 'bg-slate-700/70 text-slate-300 hover:bg-slate-700'
                               : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-md'
                           }`}
@@ -1699,9 +2008,129 @@ export const NatalLuz: React.FC = () => {
       {modalImpressaoComandas && (
         <ComandasPrintModal
           comandas={comandasParaImpressao}
+          turmaFiltro={turmaImpressaoLote}
           onClose={() => setModalImpressaoComandas(false)}
           onConfirmPrint={handleConfirmarImpressao}
         />
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL DE CONFERÊNCIA DE COMPROVANTE (LIGHTBOX 1-CLIQUE)        */}
+      {/* ============================================================== */}
+      {modalComprovante && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 my-6 text-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            {/* Cabeçalho */}
+            <div className="flex items-start justify-between border-b border-slate-700 pb-3">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                  Conferência de Comprovante de Pagamento
+                </span>
+                <h2 className="text-xl font-black text-white flex items-center gap-2 mt-0.5">
+                  <span>Pedido {modalComprovante.codigoPedido || `#${modalComprovante.id}`}</span>
+                  <span className="text-xs font-mono bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/40">
+                    TXID: {formatCodigoPixTxid(modalComprovante.codigoPedido || `NL${modalComprovante.id}`)}
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-300 mt-1">
+                  Aluno: <strong className="text-white">{modalComprovante.estudante}</strong> • Turma: <strong className="text-amber-400">{modalComprovante.turma || 'Sem turma'}</strong> • Total: <strong className="text-emerald-400 text-sm">R$ {(parseFloat(modalComprovante.total) || 0).toFixed(2).replace('.', ',')}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setModalComprovante(null)}
+                className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 hover:bg-slate-700 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Imagem do Comprovante */}
+            <div className="bg-slate-950 rounded-2xl p-2 border border-slate-800 max-h-[55vh] overflow-auto flex items-center justify-center">
+              {modalComprovante.comprovante ? (
+                modalComprovante.comprovante.startsWith('data:image') || modalComprovante.comprovante.startsWith('http') ? (
+                  <img
+                    src={modalComprovante.comprovante}
+                    alt="Comprovante de pagamento"
+                    className="max-h-[50vh] w-auto max-w-full rounded-xl object-contain shadow-lg"
+                  />
+                ) : (
+                  <iframe
+                    src={modalComprovante.comprovante}
+                    title="Documento de comprovante"
+                    className="w-full h-[50vh] rounded-xl border-none"
+                  />
+                )
+              ) : (
+                <p className="text-xs text-slate-500 py-8">Nenhum anexo disponível.</p>
+              )}
+            </div>
+
+            {/* Campo Opcional de Recusa */}
+            {mostrarRecusaField && (
+              <div className="bg-rose-950/40 border border-rose-800/80 rounded-2xl p-3.5 space-y-2 animate-in fade-in">
+                <label className="text-xs font-bold text-rose-300 block">
+                  Motivo da Recusa (visível para o responsável):
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Valor incorreto, comprovante ilegível, comprovante de agendamento..."
+                  value={motivoRecusaInput}
+                  onChange={(e) => setMotivoRecusaInput(e.target.value)}
+                  className="w-full bg-slate-900 border border-rose-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-rose-400"
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setMostrarRecusaField(false)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRecusarComanda(modalComprovante.id)}
+                    className="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md"
+                  >
+                    Confirmar Recusa
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Ações de Conferência em 1 Clique */}
+            {!mostrarRecusaField && (
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setMostrarRecusaField(true)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950 text-rose-300 hover:text-rose-100 border border-rose-900/60 text-xs font-bold transition cursor-pointer"
+                >
+                  ⚠️ Recusar Comprovante
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalComprovante(null)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+                  >
+                    Fechar
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAprovarComanda(modalComprovante.id)}
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white text-xs font-black tracking-wide flex items-center gap-2 shadow-lg shadow-emerald-950 cursor-pointer active:scale-95"
+                  >
+                    <CheckCheck className="w-4 h-4" />
+                    <span>Aprovar Pagamento (1 Clique)</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* ============================================================== */}
