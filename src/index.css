@@ -40,3 +40,41 @@
   border-color: #cbd5e1;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
 }
+
+/* Regras de Impressão */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 5mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Oculta interface interativa em impressão */
+  .no-print,
+  nav,
+  header,
+  aside {
+    display: none !important;
+  }
+
+  /* Força quebra de página por grupo de 4 comandas */
+  .page-break-comandas {
+    page-break-after: always !important;
+    break-after: page !important;
+    height: 280mm !important;
+    max-height: 280mm !important;
+    box-sizing: border-box !important;
+  }
+
+  .page-break-balancete {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+}

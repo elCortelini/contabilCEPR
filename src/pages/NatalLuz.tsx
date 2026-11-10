@@ -21,7 +21,14 @@ import {
   Printer,
   Calendar,
   AlertCircle,
-  Share2
+  Share2,
+  DollarSign,
+  Download,
+  FileSpreadsheet,
+  CheckSquare,
+  Square,
+  Filter,
+  Users
 } from 'lucide-react';
 import { api } from '../services/api';
 import { 
@@ -32,6 +39,8 @@ import {
   CIDADE_PIX, 
   WHATSAPP_APP 
 } from '../utils/pix';
+import { ComandasPrintModal } from '../components/natal/ComandasPrintModal';
+import { BalancetePrintModal } from '../components/natal/BalancetePrintModal';
 
 // Cardápio oficial da ficha enviada
 const PRODUTOS_INICIAIS = [
@@ -45,7 +54,7 @@ const PRODUTOS_INICIAIS = [
 ];
 
 export const NatalLuz: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'nova' | 'comandas' | 'cozinha'>('nova');
+  const [activeSubTab, setActiveSubTab] = useState<'nova' | 'comandas' | 'cozinha' | 'arrecadacao'>('nova');
   const [loading, setLoading] = useState(false);
 
   // Formulário da Nova Comanda
@@ -58,10 +67,21 @@ export const NatalLuz: React.FC = () => {
   const [ticketEntregue, setTicketEntregue] = useState(false);
   const [quantidades, setQuantidades] = useState<Record<string, number>>({});
 
-  // Listagem & Filtros
+  // Listagem & Filtros (Aba Comandas)
   const [comandas, setComandas] = useState<any[]>([]);
   const [busca, setBusca] = useState('');
   const [filtroTicket, setFiltroTicket] = useState<'todos' | 'entregue' | 'pendente'>('todos');
+  const [filtroTurma, setFiltroTurma] = useState<string>('todas');
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Modais de Impressão
+  const [modalImpressaoComandas, setModalImpressaoComandas] = useState(false);
+  const [modalBalancete, setModalBalancete] = useState(false);
+
+  // Filtros da Aba Arrecadação
+  const [filtroFormaArrecadacao, setFiltroFormaArrecadacao] = useState<'todas' | 'pix' | 'dinheiro'>('todas');
+  const [filtroTurmaArrecadacao, setFiltroTurmaArrecadacao] = useState<string>('todas');
+  const [buscaArrecadacao, setBuscaArrecadacao] = useState('');
 
   // Modal de Sucesso / Envio WhatsApp
   const [modalSucesso, setModalSucesso] = useState<any | null>(null);
@@ -196,8 +216,7 @@ export const NatalLuz: React.FC = () => {
 
     if (formaPagamento === 'pix') {
       msg += `📲 *PAGAMENTO PIX (VALOR EXATO: R$ ${totalGeral.toFixed(2).replace('.', ',')}):*\n`;
-      msg += `_Copie o código abaixo e cole no app do seu banco na opção "Pix Copia e Cola":_\n\n`;
-      msg += `${pixPayloadStr || ''}\n\n`;
+      msg += `_O código Pix Copia e Cola será enviado na mensagem seguinte para você copiar com apenas 1 toque e colar no app do seu banco!_\n\n`;
       msg += `ℹ️ *Chave Pix Alternativa (E-mail):* ${CHAVE_PIX_CEPR}\n`;
       msg += `📌 Após pagar, envie o comprovante para este WhatsApp da APP: ${WHATSAPP_APP}\n`;
     } else {
@@ -353,6 +372,17 @@ export const NatalLuz: React.FC = () => {
     }
   };
 
+  // Lista de turmas disponíveis para filtros
+  const turmasDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    comandas.forEach((c) => {
+      if (c.turma && c.turma.trim()) {
+        set.add(c.turma.trim());
+      }
+    });
+    return Array.from(set).sort();
+  }, [comandas]);
+
   // Filtragem de comandas
   const comandasFiltradas = useMemo(() => {
     return comandas.filter((c) => {
@@ -365,11 +395,184 @@ export const NatalLuz: React.FC = () => {
 
       if (!matchBusca) return false;
 
+      if (filtroTurma !== 'todas' && (c.turma || '').trim() !== filtroTurma) {
+        return false;
+      }
+
       if (filtroTicket === 'entregue') return c.ticketEntregue;
       if (filtroTicket === 'pendente') return !c.ticketEntregue;
       return true;
     });
-  }, [comandas, busca, filtroTicket]);
+  }, [comandas, busca, filtroTicket, filtroTurma]);
+
+  // Gerenciamento de seleção para impressão
+  const handleToggleSelectAll = () => {
+    if (selectedIds.length === comandasFiltradas.length && comandasFiltradas.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(comandasFiltradas.map((c) => Number(c.id)));
+    }
+  };
+
+  const handleToggleSelectOne = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const comandasParaImpressao = useMemo(() => {
+    const idSet = new Set(selectedIds);
+    return comandas.filter((c) => idSet.has(Number(c.id)));
+  }, [comandas, selectedIds]);
+
+  const handleConfirmarImpressao = async (marcarEntregue: boolean) => {
+    if (marcarEntregue && selectedIds.length > 0) {
+      await api.updateMultipleNatalTickets(selectedIds, true);
+      setComandas((prev) =>
+        prev.map((c) => (selectedIds.includes(Number(c.id)) ? { ...c, ticketEntregue: true } : c))
+      );
+      api.getNatalResumo().then((res) => setResumoCozinha(res));
+    }
+  };
+
+  // Cálculos consolidados para a aba Arrecadação (Contábil)
+  const turmasCalculadas = useMemo(() => {
+    const mapa: Record<string, { totalComandas: number; totalPix: number; totalDinheiro: number; total: number }> = {};
+    let totalGeral = 0;
+
+    for (const c of comandas) {
+      const nomeTurma = (c.turma || '').trim() || 'Sem Turma Definida';
+      const valor = parseFloat(c.total) || 0;
+      totalGeral += valor;
+
+      if (!mapa[nomeTurma]) {
+        mapa[nomeTurma] = { totalComandas: 0, totalPix: 0, totalDinheiro: 0, total: 0 };
+      }
+      mapa[nomeTurma].totalComandas += 1;
+      mapa[nomeTurma].total += valor;
+      if (c.formaPagamento === 'dinheiro') {
+        mapa[nomeTurma].totalDinheiro += valor;
+      } else {
+        mapa[nomeTurma].totalPix += valor;
+      }
+    }
+
+    return Object.entries(mapa)
+      .map(([turma, dados]) => ({
+        turma,
+        ...dados,
+        porcentagem: totalGeral > 0 ? (dados.total / totalGeral) * 100 : 0
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [comandas]);
+
+  const produtosCalculados = useMemo(() => {
+    const mapa: Record<string, { nome: string; quantidade: number; valorUnitario: number; valorTotal: number }> = {};
+    let totalGeral = 0;
+
+    for (const c of comandas) {
+      const itens = Array.isArray(c.itens) ? c.itens : [];
+      for (const it of itens) {
+        const nome = it.nome || 'Item';
+        const qtd = parseInt(it.quantidade) || 0;
+        const unit = parseFloat(it.valorUnitario) || 0;
+        const sub = parseFloat(it.subtotal || it.total) || (qtd * unit);
+        totalGeral += sub;
+
+        if (!mapa[nome]) {
+          mapa[nome] = { nome, quantidade: 0, valorUnitario: unit, valorTotal: 0 };
+        }
+        mapa[nome].quantidade += qtd;
+        mapa[nome].valorTotal += sub;
+        if (!mapa[nome].valorUnitario && unit > 0) {
+          mapa[nome].valorUnitario = unit;
+        }
+      }
+    }
+
+    return Object.values(mapa)
+      .map((p) => ({
+        ...p,
+        porcentagem: totalGeral > 0 ? (p.valorTotal / totalGeral) * 100 : 0
+      }))
+      .sort((a, b) => b.valorTotal - a.valorTotal);
+  }, [comandas]);
+
+  // Filtragem de comandas na aba Arrecadação
+  const comandasArrecadacaoFiltradas = useMemo(() => {
+    return comandas.filter((c) => {
+      const matchBusca =
+        !buscaArrecadacao.trim() ||
+        (c.estudante || '').toLowerCase().includes(buscaArrecadacao.toLowerCase()) ||
+        (c.turma || '').toLowerCase().includes(buscaArrecadacao.toLowerCase()) ||
+        (c.responsavel || '').toLowerCase().includes(buscaArrecadacao.toLowerCase()) ||
+        (c.id || '').toString().includes(buscaArrecadacao);
+
+      if (!matchBusca) return false;
+
+      if (filtroFormaArrecadacao !== 'todas' && c.formaPagamento !== filtroFormaArrecadacao) {
+        return false;
+      }
+
+      if (filtroTurmaArrecadacao !== 'todas' && (c.turma || '').trim() !== filtroTurmaArrecadacao) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [comandas, buscaArrecadacao, filtroFormaArrecadacao, filtroTurmaArrecadacao]);
+
+  // Exportação CSV do Contábil
+  const handleExportarCsvContabil = () => {
+    const headers = [
+      'ID Comanda',
+      'Data/Hora',
+      'Estudante',
+      'Turma',
+      'Professor(a)',
+      'Responsável',
+      'Telefone',
+      'Forma Pagamento',
+      'Status Ticket',
+      'Qtd Total Itens',
+      'Itens Detalhados',
+      'Valor Total (R$)'
+    ];
+
+    const rows = comandas.map((c) => {
+      const itens = Array.isArray(c.itens) ? c.itens : [];
+      const itensTexto = itens.map((it: any) => `${it.quantidade}x ${it.nome}`).join(' | ');
+      const qtdTotal = itens.reduce((acc: number, it: any) => acc + (parseInt(it.quantidade) || 0), 0);
+      const totalNum = (parseFloat(c.total) || 0).toFixed(2).replace('.', ',');
+      const dataStr = c.criadaEm ? new Date(c.criadaEm).toLocaleString('pt-BR') : '';
+
+      return [
+        `#${c.id}`,
+        `"${dataStr}"`,
+        `"${(c.estudante || '').replace(/"/g, '""')}"`,
+        `"${(c.turma || '').replace(/"/g, '""')}"`,
+        `"${(c.professor || '').replace(/"/g, '""')}"`,
+        `"${(c.responsavel || '').replace(/"/g, '""')}"`,
+        `"${(c.telefone || '').replace(/"/g, '""')}"`,
+        `"${(c.formaPagamento || '').toUpperCase()}"`,
+        `"${c.ticketEntregue ? 'ENTREGUE' : 'PENDENTE'}"`,
+        qtdTotal,
+        `"${itensTexto.replace(/"/g, '""')}"`,
+        `"${totalNum}"`
+      ].join(';');
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `relatorio_contabil_natal_luz_cepr_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-full bg-slate-900 text-slate-100 pb-28 md:pb-12">
@@ -401,10 +604,10 @@ export const NatalLuz: React.FC = () => {
           </div>
 
           {/* Navegação entre Abas */}
-          <div className="flex bg-slate-950/60 p-1 rounded-2xl border border-white/10 backdrop-blur-md w-full sm:w-auto">
+          <div className="flex flex-wrap bg-slate-950/60 p-1 rounded-2xl border border-white/10 backdrop-blur-md w-full sm:w-auto gap-1">
             <button
               onClick={() => setActiveSubTab('nova')}
-              className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
+              className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
                 activeSubTab === 'nova'
                   ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-900/50'
                   : 'text-slate-300 hover:text-white hover:bg-white/5'
@@ -418,7 +621,7 @@ export const NatalLuz: React.FC = () => {
                 setActiveSubTab('comandas');
                 carregarDados();
               }}
-              className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
+              className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
                 activeSubTab === 'comandas'
                   ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-900/50'
                   : 'text-slate-300 hover:text-white hover:bg-white/5'
@@ -437,7 +640,7 @@ export const NatalLuz: React.FC = () => {
                 setActiveSubTab('cozinha');
                 carregarDados();
               }}
-              className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
+              className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
                 activeSubTab === 'cozinha'
                   ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-900/50'
                   : 'text-slate-300 hover:text-white hover:bg-white/5'
@@ -445,6 +648,20 @@ export const NatalLuz: React.FC = () => {
             >
               <Utensils className="w-4 h-4" />
               <span>Cozinha</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveSubTab('arrecadacao');
+                carregarDados();
+              }}
+              className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
+                activeSubTab === 'arrecadacao'
+                  ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-900/50'
+                  : 'text-slate-300 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <DollarSign className="w-4 h-4" />
+              <span>Arrecadação</span>
             </button>
           </div>
         </div>
@@ -761,49 +978,134 @@ export const NatalLuz: React.FC = () => {
           <div className="space-y-4 animate-in fade-in duration-200">
             {/* Barra de Busca e Filtros */}
             <div className="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-lg space-y-3">
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                <input
-                  type="text"
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar por estudante, responsável, turma ou Nº..."
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Campo de Busca */}
+                <div className="relative md:col-span-2">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                  <input
+                    type="text"
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Buscar por estudante, responsável, turma ou Nº..."
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Filtro por Turma */}
+                <div className="relative">
+                  <select
+                    value={filtroTurma}
+                    onChange={(e) => setFiltroTurma(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold cursor-pointer"
+                  >
+                    <option value="todas">🏫 Todas as Turmas ({turmasDisponiveis.length})</option>
+                    {turmasDisponiveis.map((t) => (
+                      <option key={t} value={t}>
+                        Turma: {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-bold">
+              {/* Filtros de Status de Entrega */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-700/60">
+                <div className="flex items-center gap-2 overflow-x-auto text-xs font-bold">
+                  <button
+                    onClick={() => setFiltroTicket('todos')}
+                    className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${
+                      filtroTicket === 'todos'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-900 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Todas ({comandas.length})
+                  </button>
+                  <button
+                    onClick={() => setFiltroTicket('pendente')}
+                    className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1 ${
+                      filtroTicket === 'pendente'
+                        ? 'bg-amber-600 text-white'
+                        : 'bg-slate-900 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Clock className="w-3 h-3" />
+                    <span>Pendentes de Entrega</span>
+                  </button>
+                  <button
+                    onClick={() => setFiltroTicket('entregue')}
+                    className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1 ${
+                      filtroTicket === 'entregue'
+                        ? 'bg-emerald-700 text-white'
+                        : 'bg-slate-900 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>Tickets Entregues</span>
+                  </button>
+                </div>
+
+                <span className="text-xs text-slate-400">
+                  Exibindo <strong>{comandasFiltradas.length}</strong> de {comandas.length}
+                </span>
+              </div>
+            </div>
+
+            {/* Barra de Ação em Lote: Seleção e Impressão (Lei de Fitts & Von Restorff) */}
+            <div className="bg-slate-800/90 border border-emerald-500/30 rounded-2xl p-3.5 sm:p-4 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button
-                  onClick={() => setFiltroTicket('todos')}
-                  className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${
-                    filtroTicket === 'todos'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-900 text-slate-400 hover:text-white'
-                  }`}
+                  type="button"
+                  onClick={handleToggleSelectAll}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-700/80 border border-slate-700 text-xs font-bold text-slate-200 transition select-none cursor-pointer"
                 >
-                  Todas ({comandas.length})
+                  {selectedIds.length > 0 && selectedIds.length === comandasFiltradas.length ? (
+                    <CheckSquare className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <Square className="w-4 h-4 text-slate-400" />
+                  )}
+                  <span>
+                    {selectedIds.length === comandasFiltradas.length && comandasFiltradas.length > 0
+                      ? 'Desmarcar Todas'
+                      : `Selecionar Filtradas (${comandasFiltradas.length})`}
+                  </span>
                 </button>
+
+                {selectedIds.length > 0 && (
+                  <span className="text-xs font-semibold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2.5 py-1 rounded-lg">
+                    {selectedIds.length} selecionada(s)
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                {selectedIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIds([])}
+                    className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-700 transition"
+                  >
+                    Limpar
+                  </button>
+                )}
+
                 <button
-                  onClick={() => setFiltroTicket('pendente')}
-                  className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1 ${
-                    filtroTicket === 'pendente'
-                      ? 'bg-amber-600 text-white'
-                      : 'bg-slate-900 text-slate-400 hover:text-white'
+                  type="button"
+                  disabled={selectedIds.length === 0}
+                  onClick={() => setModalImpressaoComandas(true)}
+                  className={`w-full sm:w-auto min-h-[48px] px-5 py-2.5 rounded-xl text-xs font-black tracking-wide flex items-center justify-center gap-2 transition shadow-xl active:scale-95 cursor-pointer ${
+                    selectedIds.length === 0
+                      ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white shadow-emerald-950 border border-emerald-400/50 animate-pulse'
                   }`}
+                  title="Gerar impressão de 4 comandas por folha com moldura para recorte"
                 >
-                  <Clock className="w-3 h-3" />
-                  <span>Pendentes de Entrega</span>
-                </button>
-                <button
-                  onClick={() => setFiltroTicket('entregue')}
-                  className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1 ${
-                    filtroTicket === 'entregue'
-                      ? 'bg-emerald-700 text-white'
-                      : 'bg-slate-900 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <CheckCircle2 className="w-3 h-3" />
-                  <span>Tickets Entregues</span>
+                  <Printer className="w-4 h-4" />
+                  <span>
+                    {selectedIds.length === 0
+                      ? 'Selecione Comandas para Imprimir'
+                      : `Imprimir Comandas (${selectedIds.length})`}
+                  </span>
                 </button>
               </div>
             </div>
@@ -814,7 +1116,7 @@ export const NatalLuz: React.FC = () => {
                 <Receipt className="w-10 h-10 mx-auto text-slate-600 mb-2" />
                 <p className="font-semibold text-sm">Nenhuma comanda encontrada.</p>
                 <p className="text-xs text-slate-500 mt-1">
-                  Cadastre um pedido na aba "Nova Ficha".
+                  Ajuste os filtros de busca ou cadastre um pedido na aba "Nova Ficha".
                 </p>
               </div>
             ) : (
@@ -822,30 +1124,43 @@ export const NatalLuz: React.FC = () => {
                 {comandasFiltradas.map((cmd) => {
                   const itensArr = Array.isArray(cmd.itens) ? cmd.itens : [];
                   const totalNum = parseFloat(cmd.total) || 0;
+                  const isSelected = selectedIds.includes(Number(cmd.id));
 
                   return (
                     <div
                       key={cmd.id}
-                      className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 shadow-md space-y-3 transition hover:border-slate-600"
+                      className={`bg-slate-800/90 border rounded-2xl p-4 shadow-md space-y-3 transition ${
+                        isSelected
+                          ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-slate-800/95'
+                          : 'border-slate-700/80 hover:border-slate-600'
+                      }`}
                     >
-                      {/* Topo do Card */}
-                      <div className="flex items-start justify-between gap-2 border-b border-slate-700/60 pb-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-black text-white text-base">
-                              #{cmd.id.toString().padStart(5, '0')}
-                            </span>
-                            <span className="text-xs text-slate-400">
-                              {cmd.criadaEm ? new Date(cmd.criadaEm).toLocaleString('pt-BR') : ''}
-                            </span>
+                      {/* Topo do Card com Checkbox de Seleção */}
+                      <div className="flex items-start justify-between gap-3 border-b border-slate-700/60 pb-3">
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectOne(Number(cmd.id))}
+                            className="mt-1 w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 bg-slate-900 border-slate-600 cursor-pointer"
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-white text-base">
+                                #{cmd.id.toString().padStart(5, '0')}
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                {cmd.criadaEm ? new Date(cmd.criadaEm).toLocaleString('pt-BR') : ''}
+                              </span>
+                            </div>
+                            <h3 className="font-bold text-emerald-400 text-base mt-0.5">
+                              {cmd.estudante}
+                            </h3>
+                            <p className="text-xs text-slate-300">
+                              {cmd.turma && <span className="font-semibold text-amber-300">Turma: {cmd.turma} • </span>}
+                              Resp: <strong>{cmd.responsavel}</strong> ({cmd.telefone})
+                            </p>
                           </div>
-                          <h3 className="font-bold text-emerald-400 text-base mt-0.5">
-                            {cmd.estudante}
-                          </h3>
-                          <p className="text-xs text-slate-300">
-                            {cmd.turma && <span className="font-semibold">{cmd.turma} • </span>}
-                            Resp: <strong>{cmd.responsavel}</strong> ({cmd.telefone})
-                          </p>
                         </div>
 
                         {/* Badges de Status */}
@@ -887,7 +1202,7 @@ export const NatalLuz: React.FC = () => {
                               {it.quantidade}x {it.nome}
                             </span>
                             <span className="font-semibold text-slate-200">
-                              R$ {(parseFloat(it.subtotal) || 0).toFixed(2).replace('.', ',')}
+                              R$ {(parseFloat(it.subtotal || it.total) || 0).toFixed(2).replace('.', ',')}
                             </span>
                           </div>
                         ))}
@@ -914,6 +1229,20 @@ export const NatalLuz: React.FC = () => {
                         </button>
 
                         <div className="flex items-center gap-1.5">
+                          {/* Imprimir Comanda Individual */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedIds([Number(cmd.id)]);
+                              setModalImpressaoComandas(true);
+                            }}
+                            className="p-2 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-bold transition flex items-center gap-1"
+                            title="Imprimir esta comanda"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Imprimir</span>
+                          </button>
+
                           {/* Reenviar WhatsApp */}
                           <button
                             type="button"
@@ -922,11 +1251,24 @@ export const NatalLuz: React.FC = () => {
                               handleAbrirWhatsApp(cmd.telefone, texto);
                             }}
                             className="p-2 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/50 text-xs font-bold transition flex items-center gap-1"
-                            title="Reenviar pelo WhatsApp"
+                            title="Reenviar resumo pelo WhatsApp"
                           >
                             <Send className="w-3.5 h-3.5" />
                             <span>WhatsApp</span>
                           </button>
+
+                          {/* Enviar Chave Pix Isolada (se Pix) */}
+                          {cmd.formaPagamento === 'pix' && cmd.pixPayload && (
+                            <button
+                              type="button"
+                              onClick={() => handleAbrirWhatsApp(cmd.telefone, cmd.pixPayload)}
+                              className="p-2 rounded-xl bg-teal-950/80 hover:bg-teal-900 text-teal-300 border border-teal-700/50 text-xs font-bold transition flex items-center gap-1"
+                              title="Enviar APENAS o código Pix Copia e Cola (mensagem separada) no WhatsApp"
+                            >
+                              <QrCode className="w-3.5 h-3.5 text-amber-300" />
+                              <span>Só Pix</span>
+                            </button>
+                          )}
 
                           {/* Excluir */}
                           <button
@@ -948,119 +1290,432 @@ export const NatalLuz: React.FC = () => {
         )}
 
         {/* ============================================================== */}
-        {/* ABA 3: RESUMO DA COZINHA & PRODUÇÃO                            */}
+        {/* ABA 3: COZINHA (EXCLUSIVO CONTROLE DE PRODUÇÃO)               */}
         {/* ============================================================== */}
         {activeSubTab === 'cozinha' && (
           <div className="space-y-4 animate-in fade-in duration-200">
-            {/* Cards de Métricas */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Total Geral
-                </span>
-                <span className="text-xl sm:text-2xl font-black text-amber-400 mt-1 block">
-                  R$ {(resumoCozinha?.faturamentoTotal || 0).toFixed(2).replace('.', ',')}
-                </span>
-                <span className="text-[10px] text-slate-500">
-                  {resumoCozinha?.totalComandas || 0} comandas
-                </span>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Total em Pix
-                </span>
-                <span className="text-xl sm:text-2xl font-black text-emerald-400 mt-1 block">
-                  R$ {(resumoCozinha?.totalPix || 0).toFixed(2).replace('.', ',')}
-                </span>
-                <span className="text-[10px] text-emerald-400/80">Via conta escolar</span>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Total em Dinheiro
-                </span>
-                <span className="text-xl sm:text-2xl font-black text-amber-300 mt-1 block">
-                  R$ {(resumoCozinha?.totalDinheiro || 0).toFixed(2).replace('.', ',')}
-                </span>
-                <span className="text-[10px] text-amber-400/80">No caixa físico</span>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Tickets
-                </span>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-lg font-black text-emerald-400">
-                    {resumoCozinha?.ticketsEntregues || 0} entregues
-                  </span>
+            {/* Cabeçalho da Cozinha */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  <Utensils className="w-6 h-6" />
                 </div>
-                <span className="text-[10px] text-amber-400">
-                  {resumoCozinha?.ticketsPendentes || 0} pendentes
-                </span>
-              </div>
-            </div>
-
-            {/* Tabela de Produção da Cozinha */}
-            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-700/60 pb-3">
-                <div className="flex items-center gap-2">
-                  <Utensils className="w-5 h-5 text-amber-400" />
-                  <h2 className="font-extrabold text-sm sm:text-base text-white tracking-wide">
-                    Demanda de Preparo & Estoque da Cozinha
+                <div>
+                  <h2 className="font-extrabold text-base sm:text-lg text-white tracking-wide">
+                    Demanda de Produção da Cozinha
                   </h2>
+                  <p className="text-xs text-slate-400">
+                    Controle operacional exclusivo das quantidades totais de comidas e bebidas a preparar
+                  </p>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={carregarDados}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition"
-                  title="Atualizar dados"
+                  className="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold transition flex items-center gap-1.5"
+                  title="Atualizar dados de produção"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Atualizar</span>
                 </button>
               </div>
+            </div>
 
-              <div className="space-y-2">
-                {PRODUTOS_INICIAIS.map((prod) => {
-                  const achado = (resumoCozinha?.produtos || []).find(
-                    (p: any) => p.nome.toLowerCase() === prod.nome.toLowerCase()
-                  );
-                  const qtdTotal = achado?.quantidade || 0;
-                  const valorTotal = achado?.valorTotal || 0;
+            {/* Card de Resumo de Produção */}
+            <div className="bg-gradient-to-r from-amber-950/40 via-slate-800/80 to-slate-900 border border-amber-500/30 rounded-2xl p-4 shadow-md flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider block">
+                  Volume Total de Produção
+                </span>
+                <span className="text-2xl sm:text-3xl font-black text-white mt-0.5 block">
+                  {PRODUTOS_INICIAIS.reduce((acc, prod) => {
+                    const achado = (resumoCozinha?.produtos || []).find(
+                      (p: any) => p.nome.toLowerCase() === prod.nome.toLowerCase()
+                    );
+                    return acc + (achado?.quantidade || 0);
+                  }, 0)}{' '}
+                  <span className="text-sm font-semibold text-amber-300">porções / itens no total</span>
+                </span>
+              </div>
+              <span className="text-3xl sm:text-4xl">👨‍🍳</span>
+            </div>
 
-                  return (
-                    <div
-                      key={prod.id}
-                      className="p-3.5 bg-slate-900/70 border border-slate-700/60 rounded-xl flex items-center justify-between gap-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{prod.icone}</span>
-                        <div>
-                          <h4 className="font-bold text-white text-sm sm:text-base">
-                            {prod.nome}
-                          </h4>
-                          <span className="text-xs text-slate-400">
-                            Valor unitário: R$ {prod.valorUnitario.toFixed(2).replace('.', ',')}
-                          </span>
-                        </div>
-                      </div>
+            {/* Cards de Preparo da Cozinha (Sem Valores Financeiros) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {PRODUTOS_INICIAIS.map((prod) => {
+                const achado = (resumoCozinha?.produtos || []).find(
+                  (p: any) => p.nome.toLowerCase() === prod.nome.toLowerCase()
+                );
+                const qtdTotal = achado?.quantidade || 0;
 
-                      <div className="text-right">
-                        <span className="text-xl sm:text-2xl font-black text-amber-400 block">
-                          {qtdTotal} <span className="text-xs font-normal text-slate-400">un</span>
-                        </span>
-                        <span className="text-xs text-emerald-400 font-semibold">
-                          Total: R$ {valorTotal.toFixed(2).replace('.', ',')}
+                return (
+                  <div
+                    key={prod.id}
+                    className="p-4 bg-slate-800/90 border border-slate-700/80 rounded-2xl shadow-md flex items-center justify-between gap-3 hover:border-amber-500/50 transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl p-2 rounded-xl bg-slate-900 border border-slate-700/60">
+                        {prod.icone}
+                      </span>
+                      <div>
+                        <h4 className="font-extrabold text-white text-base">
+                          {prod.nome}
+                        </h4>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          Item do cardápio festivo
                         </span>
                       </div>
                     </div>
-                  );
-                })}
+
+                    <div className="text-right bg-slate-900/80 border border-slate-700/60 px-3.5 py-2 rounded-xl">
+                      <span className="text-2xl font-black text-amber-400 block font-mono">
+                        {qtdTotal}
+                      </span>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">
+                        unidades
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* ABA 4: ARRECADAÇÃO (PAINEL CONTÁBIL COMPLETO)                  */}
+        {/* ============================================================== */}
+        {activeSubTab === 'arrecadacao' && (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            {/* Topo com Ações Contábeis */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  <DollarSign className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="font-extrabold text-base sm:text-lg text-white tracking-wide">
+                    Painel de Arrecadação & Contábil
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Prestação de contas, balancete consolidado e arrecadação por turma e produto
+                  </p>
+                </div>
+              </div>
+
+              {/* Botões de Ação do Contábil */}
+              <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={handleExportarCsvContabil}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-bold transition flex items-center justify-center gap-2 shadow-md active:scale-95"
+                  title="Baixar planilha completa das vendas em formato CSV para Excel"
+                >
+                  <Download className="w-4 h-4 text-emerald-400" />
+                  <span>Exportar CSV</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalBalancete(true)}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-black transition flex items-center justify-center gap-2 shadow-lg shadow-amber-950 active:scale-95 cursor-pointer"
+                  title="Abrir demonstrativo contábil oficial para impressão ou PDF"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Imprimir Balancete</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Cards de Métricas Financeiras Consolidadas */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Faturamento Total
+                </span>
+                <span className="text-xl sm:text-2xl font-black text-amber-400 mt-1 block font-mono">
+                  R$ {(resumoCozinha?.faturamentoTotal || 0).toFixed(2).replace('.', ',')}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {comandas.length} comanda(s) emitida(s)
+                </span>
+              </div>
+
+              <div className="bg-slate-800/80 border border-emerald-500/30 rounded-2xl p-4">
+                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
+                  Total em PIX
+                </span>
+                <span className="text-xl sm:text-2xl font-black text-emerald-300 mt-1 block font-mono">
+                  R$ {(resumoCozinha?.totalPix || 0).toFixed(2).replace('.', ',')}
+                </span>
+                <span className="text-[10px] text-emerald-400/80 font-medium">
+                  Conta Escolar (
+                  {(resumoCozinha?.faturamentoTotal || 0) > 0
+                    ? (((resumoCozinha?.totalPix || 0) / resumoCozinha.faturamentoTotal) * 100).toFixed(1)
+                    : '0'}
+                  %)
+                </span>
+              </div>
+
+              <div className="bg-slate-800/80 border border-amber-500/30 rounded-2xl p-4">
+                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
+                  Total em Dinheiro
+                </span>
+                <span className="text-xl sm:text-2xl font-black text-amber-300 mt-1 block font-mono">
+                  R$ {(resumoCozinha?.totalDinheiro || 0).toFixed(2).replace('.', ',')}
+                </span>
+                <span className="text-[10px] text-amber-400/80 font-medium">
+                  Caixa Físico (
+                  {(resumoCozinha?.faturamentoTotal || 0) > 0
+                    ? (((resumoCozinha?.totalDinheiro || 0) / resumoCozinha.faturamentoTotal) * 100).toFixed(1)
+                    : '0'}
+                  %)
+                </span>
+              </div>
+
+              <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Ticket Médio
+                </span>
+                <span className="text-xl sm:text-2xl font-black text-white mt-1 block font-mono">
+                  R${' '}
+                  {comandas.length > 0
+                    ? ((resumoCozinha?.faturamentoTotal || 0) / comandas.length).toFixed(2).replace('.', ',')
+                    : '0,00'}
+                </span>
+                <span className="text-[10px] text-slate-400">Por pedido emitido</span>
+              </div>
+            </div>
+
+            {/* SEÇÃO 1: Arrecadação Consolidada por Turma */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-lg space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-700/60 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-emerald-400" />
+                  <h3 className="font-bold text-sm sm:text-base text-white">
+                    1. Arrecadação Consolidada por Turma
+                  </h3>
+                </div>
+                <span className="text-xs text-slate-400">
+                  {turmasCalculadas.length} turma(s) com pedidos
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-700 text-slate-400 text-left bg-slate-900/60">
+                      <th className="py-2 px-3 font-bold rounded-l-lg">Turma</th>
+                      <th className="py-2 px-3 font-bold text-center">Nº Comandas</th>
+                      <th className="py-2 px-3 font-bold text-right">Dinheiro</th>
+                      <th className="py-2 px-3 font-bold text-right">Pix</th>
+                      <th className="py-2 px-3 font-bold text-right">Total Arrecadado</th>
+                      <th className="py-2 px-3 font-bold text-right rounded-r-lg">% do Faturamento</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/40">
+                    {turmasCalculadas.map((t, i) => (
+                      <tr key={i} className="hover:bg-slate-700/30 transition">
+                        <td className="py-2.5 px-3 font-bold text-white flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-slate-700 text-slate-300 text-[10px] flex items-center justify-center font-mono">
+                            {i + 1}
+                          </span>
+                          <span>{t.turma}</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center text-slate-300 font-semibold">
+                          {t.totalComandas}
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-amber-300 font-mono">
+                          R$ {t.totalDinheiro.toFixed(2).replace('.', ',')}
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-emerald-300 font-mono">
+                          R$ {t.totalPix.toFixed(2).replace('.', ',')}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-black text-amber-400 font-mono text-sm">
+                          R$ {t.total.toFixed(2).replace('.', ',')}
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-slate-300 font-semibold">
+                          {t.porcentagem.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* SEÇÃO 2: Vendas e Arrecadação por Produto */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-lg space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-700/60 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-amber-400" />
+                  <h3 className="font-bold text-sm sm:text-base text-white">
+                    2. Desempenho de Vendas por Produto
+                  </h3>
+                </div>
+                <span className="text-xs text-slate-400">
+                  {produtosCalculados.length} item(ns)
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-700 text-slate-400 text-left bg-slate-900/60">
+                      <th className="py-2 px-3 font-bold rounded-l-lg">Produto</th>
+                      <th className="py-2 px-3 font-bold text-center">Qtd Vendida</th>
+                      <th className="py-2 px-3 font-bold text-right">Valor Unitário</th>
+                      <th className="py-2 px-3 font-bold text-right">Total Apurado</th>
+                      <th className="py-2 px-3 font-bold text-right rounded-r-lg">% da Receita</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/40">
+                    {produtosCalculados.map((p, i) => (
+                      <tr key={i} className="hover:bg-slate-700/30 transition">
+                        <td className="py-2.5 px-3 font-bold text-white">{p.nome}</td>
+                        <td className="py-2.5 px-3 text-center text-slate-300 font-bold">
+                          {p.quantidade} un
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-slate-400 font-mono">
+                          R$ {p.valorUnitario.toFixed(2).replace('.', ',')}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-black text-amber-400 font-mono text-sm">
+                          R$ {p.valorTotal.toFixed(2).replace('.', ',')}
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-slate-300 font-semibold">
+                          {p.porcentagem.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* SEÇÃO 3: Extrato Analítico de Pedidos */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-lg space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-700/60 pb-3">
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base text-white">
+                    3. Extrato Analítico de Comandas
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Conferência contábil item a item de todos os pedidos registrados
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={filtroFormaArrecadacao}
+                    onChange={(e: any) => setFiltroFormaArrecadacao(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                  >
+                    <option value="todas">Forma: Todas</option>
+                    <option value="pix">Apenas PIX</option>
+                    <option value="dinheiro">Apenas Dinheiro</option>
+                  </select>
+
+                  <select
+                    value={filtroTurmaArrecadacao}
+                    onChange={(e) => setFiltroTurmaArrecadacao(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                  >
+                    <option value="todas">Turma: Todas</option>
+                    {turmasDisponiveis.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto max-h-96">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-slate-900">
+                    <tr className="border-b border-slate-700 text-slate-400 text-left">
+                      <th className="py-2 px-2 font-bold">Nº</th>
+                      <th className="py-2 px-2 font-bold">Data</th>
+                      <th className="py-2 px-2 font-bold">Estudante</th>
+                      <th className="py-2 px-2 font-bold">Turma</th>
+                      <th className="py-2 px-2 font-bold">Responsável</th>
+                      <th className="py-2 px-2 font-bold text-center">Forma</th>
+                      <th className="py-2 px-2 font-bold text-right">Total (R$)</th>
+                      <th className="py-2 px-2 font-bold text-center">Ticket</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/40">
+                    {comandasArrecadacaoFiltradas.map((c) => (
+                      <tr key={c.id} className="hover:bg-slate-700/30 transition">
+                        <td className="py-2 px-2 font-mono font-bold text-slate-300">
+                          #{c.id.toString().padStart(5, '0')}
+                        </td>
+                        <td className="py-2 px-2 text-slate-400">
+                          {c.criadaEm ? new Date(c.criadaEm).toLocaleDateString('pt-BR') : '-'}
+                        </td>
+                        <td className="py-2 px-2 font-bold text-white">{c.estudante}</td>
+                        <td className="py-2 px-2 text-slate-300">{c.turma || '-'}</td>
+                        <td className="py-2 px-2 text-slate-400">{c.responsavel}</td>
+                        <td className="py-2 px-2 text-center uppercase font-bold text-[10px]">
+                          <span
+                            className={`px-2 py-0.5 rounded-full ${
+                              c.formaPagamento === 'pix'
+                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                                : 'bg-amber-950 text-amber-300 border border-amber-800'
+                            }`}
+                          >
+                            {c.formaPagamento}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-right font-bold text-amber-400 font-mono">
+                          R$ {(parseFloat(c.total) || 0).toFixed(2).replace('.', ',')}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                              c.ticketEntregue
+                                ? 'bg-emerald-900/60 text-emerald-300'
+                                : 'bg-amber-900/60 text-amber-300'
+                            }`}
+                          >
+                            {c.ticketEntregue ? 'Entregue' : 'Pendente'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* ============================================================== */}
+      {/* MODAL DE IMPRESSÃO DAS COMANDAS (4 POR FOLHA A4)               */}
+      {/* ============================================================== */}
+      {modalImpressaoComandas && (
+        <ComandasPrintModal
+          comandas={comandasParaImpressao}
+          onClose={() => setModalImpressaoComandas(false)}
+          onConfirmPrint={handleConfirmarImpressao}
+        />
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL DE IMPRESSÃO DO BALANCETE CONTÁBIL                       */}
+      {/* ============================================================== */}
+      {modalBalancete && (
+        <BalancetePrintModal
+          resumo={resumoCozinha}
+          comandas={comandas}
+          turmasCalculadas={turmasCalculadas}
+          produtosCalculados={produtosCalculados}
+          onClose={() => setModalBalancete(false)}
+        />
+      )}
 
       {/* ============================================================== */}
       {/* MODAL DE SUCESSO & ENVIO DO WHATSAPP                           */}
@@ -1087,15 +1742,33 @@ export const NatalLuz: React.FC = () => {
               </p>
             </div>
 
-            {/* Ação Principal: Disparo WhatsApp (Lei de Von Restorff) */}
-            <button
-              type="button"
-              onClick={() => handleAbrirWhatsApp(modalSucesso.telefone, modalSucesso.textoWhats)}
-              className="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white font-black text-base tracking-wide flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-950 active:scale-98 transition"
-            >
-              <Send className="w-5 h-5" />
-              <span>Abrir WhatsApp do Responsável</span>
-            </button>
+            {/* Ações Principais: Disparo WhatsApp */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => handleAbrirWhatsApp(modalSucesso.telefone, modalSucesso.textoWhats)}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white font-black text-sm tracking-wide flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-950 active:scale-98 transition"
+              >
+                <Send className="w-5 h-5" />
+                <span>
+                  {modalSucesso.formaPagamento === 'pix'
+                    ? '1. Enviar Resumo da Comanda no WhatsApp'
+                    : 'Abrir WhatsApp do Responsável'}
+                </span>
+              </button>
+
+              {modalSucesso.formaPagamento === 'pix' && modalSucesso.pixPayload && (
+                <button
+                  type="button"
+                  onClick={() => handleAbrirWhatsApp(modalSucesso.telefone, modalSucesso.pixPayload)}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black text-sm tracking-wide flex items-center justify-center gap-2.5 shadow-xl shadow-teal-950 border border-teal-400/40 active:scale-98 transition"
+                  title="Envia apenas o código Pix Copia e Cola isolado em mensagem separada para facilitar cópia"
+                >
+                  <QrCode className="w-5 h-5 text-amber-300" />
+                  <span>2. Enviar Código Pix (Mensagem Separada)</span>
+                </button>
+              )}
+            </div>
 
             {/* Bloco de Código Pix Copia e Cola (se Pix) */}
             {modalSucesso.formaPagamento === 'pix' && modalSucesso.pixPayload && (

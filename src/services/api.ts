@@ -1145,6 +1145,40 @@ export const api = {
     return { success: true, id, ticketEntregue };
   },
 
+  async updateMultipleNatalTickets(ids: number[], ticketEntregue: boolean) {
+    const idList = ids.map(Number);
+    if (firebaseApi.isConfigured()) {
+      await Promise.all(
+        idList.map((id) =>
+          firebaseApi.updateDocument('comandas_natal', id, { ticketEntregue: Boolean(ticketEntregue) })
+        )
+      );
+      return { success: true, count: idList.length };
+    }
+    if (!IS_STATIC) {
+      try {
+        await Promise.all(
+          idList.map((id) =>
+            fetch(`/api/natal/comandas/${id}/ticket`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ticketEntregue })
+            })
+          )
+        );
+      } catch (e) {
+        console.warn('Fallback local para atualização múltipla de tickets:', e);
+      }
+    }
+    const current = getStorage('comandas_natal', []);
+    const idSet = new Set(idList);
+    const updated = current.map((c: any) =>
+      idSet.has(Number(c.id)) ? { ...c, ticketEntregue: Boolean(ticketEntregue) } : c
+    );
+    setStorage('comandas_natal', updated);
+    return { success: true, count: idList.length };
+  },
+
   async deleteNatalComanda(id: number) {
     if (firebaseApi.isConfigured()) {
       await firebaseApi.deleteDocument('comandas_natal', id);
