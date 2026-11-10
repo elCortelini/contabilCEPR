@@ -1089,15 +1089,24 @@ export const api = {
   },
 
   async createNatalComanda(comanda: any) {
+    const id = comanda.id || Date.now();
+    const codigoPedido = comanda.codigoPedido || `NL-${String(id).slice(-4)}`;
+    const payload = {
+      ...comanda,
+      id,
+      codigoPedido,
+      status: comanda.status || 'aguardando_comprovante',
+      ticketEntregue: Boolean(comanda.ticketEntregue),
+      criadaEm: comanda.criadaEm || new Date().toISOString()
+    };
+
     if (firebaseApi.isConfigured()) {
-      const id = Date.now();
-      const payload = { ...comanda, id, criadaEm: new Date().toISOString() };
       await firebaseApi.setDocument('comandas_natal', id, payload);
-      return { success: true, id, comanda: payload };
+      return { success: true, id, comanda: payload, codigoPedido };
     }
     if (!IS_STATIC) {
       try {
-        const res = await fetch('/api/natal/comandas', {
+        const res = await fetch('/api/public/natal/pedidos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(comanda)
@@ -1108,16 +1117,55 @@ export const api = {
       }
     }
     const current = getStorage('comandas_natal', []);
-    const id = Date.now();
-    const newComanda = {
-      ...comanda,
-      id,
-      ticketEntregue: Boolean(comanda.ticketEntregue),
-      criadaEm: new Date().toISOString()
-    };
-    current.unshift(newComanda);
+    current.unshift(payload);
     setStorage('comandas_natal', current);
-    return { success: true, id, comanda: newComanda };
+    return { success: true, id, comanda: payload, codigoPedido };
+  },
+
+  async updateNatalComprovante(id: number | string, comprovanteBase64: string) {
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.updateDocument('comandas_natal', id, {
+        comprovante: comprovanteBase64,
+        status: 'pendente_conferencia',
+        atualizadaEm: new Date().toISOString()
+      });
+      return { success: true };
+    }
+    if (!IS_STATIC) {
+      try {
+        const res = await fetch(`/api/public/natal/pedidos/${id}/comprovante`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comprovante: comprovanteBase64 })
+        });
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Fallback local para envio de comprovante:', e);
+      }
+    }
+    const current = getStorage('comandas_natal', []);
+    const updated = current.map((c: any) =>
+      String(c.id) === String(id) || String(c.codigoPedido) === String(id)
+        ? { ...c, comprovante: comprovanteBase64, status: 'pendente_conferencia', atualizadaEm: new Date().toISOString() }
+        : c
+    );
+    setStorage('comandas_natal', updated);
+    return { success: true };
+  },
+
+  async getNatalPedido(id: string | number) {
+    if (firebaseApi.isConfigured()) {
+      const doc = await firebaseApi.getDocument('comandas_natal', id);
+      if (doc) return doc;
+    }
+    if (!IS_STATIC) {
+      try {
+        const res = await fetch(`/api/public/natal/pedidos/${id}`);
+        if (res.ok) return await res.json();
+      } catch (e) {}
+    }
+    const current = getStorage('comandas_natal', []);
+    return current.find((c: any) => String(c.id) === String(id) || String(c.codigoPedido) === String(id)) || null;
   },
 
   async updateNatalTicket(id: number, ticketEntregue: boolean) {

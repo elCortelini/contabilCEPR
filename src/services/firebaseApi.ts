@@ -1,5 +1,5 @@
 import { getFirebaseDb } from '../config/firebase';
-import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, query, orderBy, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, query, orderBy, writeBatch } from 'firebase/firestore';
 import initialData from '../../dados_financeiros_completos.json';
 
 export const firebaseApi = {
@@ -77,6 +77,18 @@ export const firebaseApi = {
     } catch (e) {
       console.error(`Erro ao buscar ${colName} do Firebase:`, e);
       return [];
+    }
+  },
+
+  async getDocument(colName: string, id: string | number) {
+    const db = getFirebaseDb();
+    if (!db) return null;
+    try {
+      const snap = await getDoc(doc(db, colName, id.toString()));
+      return snap.exists() ? { id: isNaN(Number(snap.id)) ? snap.id : Number(snap.id), ...snap.data() } : null;
+    } catch (e) {
+      console.error(`Erro ao buscar documento em ${colName}/${id}:`, e);
+      return null;
     }
   },
 
