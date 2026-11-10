@@ -39,6 +39,7 @@ import { TURMAS_OFICIAIS, ALUNOS_POR_TURMA } from '../data/turmasAlunosOficiais'
 
 // Cardápio oficial do Natal Luz CEPR
 const PRODUTOS = [
+  { id: 'teste_pix', nome: '🧪 Teste Pix (R$ 0,02)', valorUnitario: 0.02, icone: '🧪', desc: 'Item para teste de pagamento e validação do fluxo Pix' },
   { id: 'hotdog', nome: 'Cachorro-quente', valorUnitario: 10.00, icone: '🌭', desc: 'Molho artesanal e batata palha' },
   { id: 'pastel', nome: 'Pastel', valorUnitario: 10.00, icone: '🥟', desc: 'Frito na hora, crocante' },
   { id: 'refri', nome: 'Refrigerante', valorUnitario: 7.00, icone: '🥤', desc: 'Lata 350ml gelada' },
@@ -104,6 +105,7 @@ export const PedidoNatalPublico: React.FC = () => {
 
   const [loadingPedido, setLoadingPedido] = useState(false);
   const [copiadoPix, setCopiadoPix] = useState(false);
+  const [copiadoComanda, setCopiadoComanda] = useState(false);
 
   // Comprovante
   const [comprovanteBase64, setComprovanteBase64] = useState<string | null>(null);
@@ -441,17 +443,52 @@ export const PedidoNatalPublico: React.FC = () => {
     }
   };
 
-  // Montar link direto de WhatsApp da APP com o código do pedido
-  const whatsappUrl = useMemo(() => {
+  // Linhas formatadas dos itens do carrinho
+  const linhasItensTexto = useMemo(() => {
+    return Object.entries(carrinho)
+      .map(([id, qtd]) => {
+        const prod = PRODUTOS.find(p => p.id === id);
+        const subtotal = (prod ? prod.valorUnitario : 0) * qtd;
+        return `• ${qtd}x ${prod?.nome || id} — R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+      })
+      .join('\n');
+  }, [carrinho]);
+
+  // Mensagem completa da comanda para envio no WhatsApp
+  const textoComandaWhatsApp = useMemo(() => {
     if (!pedidoCriado) return '';
-    const texto = `Olá! Segue o comprovante de pagamento do Natal Luz CEPR:\n\n` +
+    return `🎄 *CENTRO EDUCACIONAL PEDRO RIZZI* 🎄\n` +
+      `✨ *NATAL LUZ 2026 - COMANDA / PEDIDO ANTECIPADO* ✨\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `📌 *Pedido:* ${pedidoCriado.codigoPedido}\n` +
-      `🧒 *Aluno:* ${nomeAlunoFinal}\n` +
+      `🧒 *Estudante:* ${nomeAlunoFinal}\n` +
       `🏫 *Turma:* ${turmaSelecionada}\n` +
-      `💰 *Valor Total:* R$ ${pedidoCriado.total.toFixed(2)}\n\n` +
-      `Favor confirmar o recebimento e entrega dos tickets. Obrigado!`;
-    return `https://wa.me/${WHATSAPP_APP_RAW}?text=${encodeURIComponent(texto)}`;
-  }, [pedidoCriado, nomeAlunoFinal, turmaSelecionada]);
+      `👨‍👩‍👧 *Responsável:* ${responsavel}\n` +
+      `📞 *Telefone:* ${telefone}\n\n` +
+      `📦 *ITENS DA COMANDA:*\n${linhasItensTexto || '• Itens confirmados no sistema'}\n\n` +
+      `💰 *VALOR TOTAL: R$ ${pedidoCriado.total.toFixed(2).replace('.', ',')}*\n` +
+      `💳 *Forma de Pagamento:* PIX\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `⚠️ *COMUNICADO IMPORTANTE AO RESPONSÁVEL:*\n` +
+      `📌 *A comprovação da compra está sujeita à conferência do recibo/comprovante do Pix pela tesouraria da APP.*\n` +
+      `🎟️ *Após a conferência, o ticket oficial de compra será enviado diretamente pela criança na sala de aula para ser utilizado no dia da festa.*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `_Segue o comprovante de pagamento Pix para conferência!_ ✨`;
+  }, [pedidoCriado, nomeAlunoFinal, turmaSelecionada, responsavel, telefone, linhasItensTexto]);
+
+  // Montar link direto de WhatsApp da APP com o comprovante e itens detalhados
+  const whatsappUrl = useMemo(() => {
+    if (!textoComandaWhatsApp) return '';
+    return `https://wa.me/${WHATSAPP_APP_RAW}?text=${encodeURIComponent(textoComandaWhatsApp)}`;
+  }, [textoComandaWhatsApp]);
+
+  // Copiar resumo da comanda para o responsável
+  const handleCopiarTextoComanda = () => {
+    if (!textoComandaWhatsApp) return;
+    navigator.clipboard.writeText(textoComandaWhatsApp);
+    setCopiadoComanda(true);
+    setTimeout(() => setCopiadoComanda(false), 2500);
+  };
 
   // Iniciar novo pedido
   const handleNovoPedido = () => {
@@ -1017,51 +1054,98 @@ export const PedidoNatalPublico: React.FC = () => {
            ========================================== */}
         {passo === 4 && pedidoCriado && (
           <div className="space-y-5 animate-in fade-in duration-200 text-center">
-            <div className="bg-slate-800/90 border border-emerald-500/60 rounded-3xl p-6 sm:p-8 shadow-2xl">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 text-emerald-400 flex items-center justify-center mx-auto mb-4">
+            <div className="bg-slate-800/90 border border-emerald-500/60 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 text-emerald-400 flex items-center justify-center mx-auto shadow-lg shadow-emerald-950">
                 <CheckCircle2 className="w-9 h-9" />
               </div>
 
-              <span className="inline-block px-3 py-1 bg-emerald-400/20 text-emerald-300 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
+              <span className="inline-block px-3 py-1 bg-emerald-400/20 text-emerald-300 rounded-full text-xs font-bold uppercase tracking-wider">
                 Pedido Registrado com Sucesso
               </span>
 
-              <h2 className="text-3xl font-black text-white">
+              <h2 className="text-3xl font-black text-white tracking-tight">
                 {pedidoCriado.codigoPedido}
               </h2>
 
-              <p className="text-slate-300 text-sm mt-3 max-w-md mx-auto leading-relaxed">
-                O comprovante do aluno <strong>{nomeAlunoFinal}</strong> (Turma <strong>{turmaSelecionada}</strong>) foi recebido!
+              <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
+                Comanda gerada para <strong className="text-white">{nomeAlunoFinal}</strong> (Turma <strong className="text-amber-300">{turmaSelecionada}</strong>).
               </p>
 
-              <div className="bg-slate-900/80 border border-slate-700 rounded-2xl p-4 mt-5 text-left text-xs space-y-2">
-                <p className="text-slate-300 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  <strong>Total Pago:</strong> R$ {pedidoCriado.total.toFixed(2)}
+              {/* Itens Comprados */}
+              <div className="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-4 text-left text-xs space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Itens da sua Comanda:
                 </p>
-                <p className="text-slate-300 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                  <strong>Entrega:</strong> As comandas físicas impressas serão entregues diretamente para o aluno na sala de aula.
-                </p>
+                <div className="space-y-1.5 text-slate-200">
+                  {Object.entries(carrinho).map(([prodId, qtd]) => {
+                    const prod = PRODUTOS.find(p => p.id === prodId);
+                    const sub = (prod ? prod.valorUnitario : 0) * qtd;
+                    return (
+                      <div key={prodId} className="flex justify-between items-center text-xs">
+                        <span>{qtd}x {prod?.nome || prodId}</span>
+                        <span className="font-semibold text-amber-300">R$ {sub.toFixed(2).replace('.', ',')}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="border-t border-slate-700/80 pt-2 flex justify-between items-center font-bold text-sm text-white">
+                  <span>Total</span>
+                  <span className="text-emerald-400">R$ {pedidoCriado.total.toFixed(2).replace('.', ',')}</span>
+                </div>
               </div>
 
-              <div className="pt-6">
+              {/* Aviso Obrigatório de Conferência e Envio do Ticket */}
+              <div className="bg-amber-950/40 border border-amber-500/50 rounded-2xl p-4 text-left text-xs space-y-1.5">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-amber-300 text-xs">Aviso Importante ao Responsável:</p>
+                    <p className="text-slate-200 text-xs leading-relaxed">
+                      📌 <strong>A comprovação da compra está sujeita à conferência do recibo/comprovante do Pix pela tesouraria da APP.</strong>
+                    </p>
+                    <p className="text-slate-300 text-xs leading-relaxed">
+                      🎟️ Após a conferência do pagamento, o ticket oficial de compra será enviado diretamente pela criança na sala de aula para ser utilizado no dia da festa.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões de Ação WhatsApp e Cópia */}
+              <div className="pt-2 space-y-2.5">
                 <a
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-slate-200 text-xs font-semibold"
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white font-black text-sm tracking-wide flex items-center justify-center gap-2 shadow-xl shadow-emerald-950 active:scale-98 transition cursor-pointer"
                 >
-                  <MessageCircle className="w-4 h-4 text-emerald-400" />
-                  <span>Dúvidas? Fale com a APP ({WHATSAPP_APP})</span>
+                  <MessageCircle className="w-5 h-5" />
+                  <span>Enviar Comprovante & Itens no WhatsApp da APP</span>
                 </a>
+
+                <button
+                  type="button"
+                  onClick={handleCopiarTextoComanda}
+                  className="w-full py-3 px-4 rounded-2xl bg-slate-700/80 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 border border-slate-600 active:scale-98 transition cursor-pointer"
+                >
+                  {copiadoComanda ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>Comanda Copiada para a Área de Transferência!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-slate-300" />
+                      <span>Copiar Texto Completo da Comanda</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
 
             <button
               type="button"
               onClick={handleNovoPedido}
-              className="text-xs text-amber-400 hover:underline py-2"
+              className="text-xs text-amber-400 hover:underline py-2 cursor-pointer"
             >
               Fazer outro pedido para outro aluno
             </button>

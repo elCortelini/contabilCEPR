@@ -52,6 +52,7 @@ import { TURMAS_OFICIAIS } from '../data/turmasAlunosOficiais';
 
 // Cardápio oficial da ficha enviada
 const PRODUTOS_INICIAIS = [
+  { id: 'teste_pix', nome: '🧪 Teste Pix (R$ 0,02)', valorUnitario: 0.02, icone: '🧪' },
   { id: 'hotdog', nome: 'Cachorro-quente', valorUnitario: 10.00, icone: '🌭' },
   { id: 'pastel', nome: 'Pastel', valorUnitario: 10.00, icone: '🥟' },
   { id: 'refri', nome: 'Refrigerante', valorUnitario: 7.00, icone: '🥤' },
@@ -232,41 +233,68 @@ export const NatalLuz: React.FC = () => {
     return `55${nums}`;
   };
 
-  // Gerador de mensagem formatada para WhatsApp
-  const gerarTextoWhatsApp = (comandaId: number | string, pixPayloadStr?: string) => {
-    const dataHora = new Date().toLocaleString('pt-BR');
-    const linhasItens = itensSelecionados
-      .map((it) => `• ${it.quantidade}x ${it.nome} — R$ ${it.subtotal.toFixed(2).replace('.', ',')}`)
-      .join('\n');
+  // Gerador de mensagem formatada para WhatsApp (suporta tanto objeto comanda completo quanto valores do formulário)
+  const gerarTextoWhatsApp = (cmdOuId: any, pixPayloadStr?: string) => {
+    const isObj = typeof cmdOuId === 'object' && cmdOuId !== null;
+    const idVal = isObj ? (cmdOuId.codigoPedido || cmdOuId.id) : cmdOuId;
+    const dataHora = isObj && cmdOuId.createdAt ? new Date(cmdOuId.createdAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
 
-    let msg = `🎄 *COLÉGIO CE PEDRO RIZZI - NATAL LUZ* 🎄\n`;
-    msg += `✨ *FICHA DE ENCOMENDA & COMANDA* ✨\n`;
+    const nomeEstudante = (isObj ? (cmdOuId.estudante || '') : estudante).trim();
+    const nomeTurma = (isObj ? (cmdOuId.turma || '') : turma).trim();
+    const nomeProf = (isObj ? (cmdOuId.professor || '') : professor).trim();
+    const nomeResp = (isObj ? (cmdOuId.responsavel || '') : responsavel).trim();
+    const numTel = (isObj ? (cmdOuId.telefone || '') : telefone).trim();
+    const forma = (isObj ? (cmdOuId.formaPagamento || 'pix') : formaPagamento).toLowerCase();
+    const totalVal = isObj ? (Number(cmdOuId.total) || 0) : totalGeral;
+    const payloadPix = (isObj ? cmdOuId.pixPayload : pixPayloadStr) || '';
+
+    const listaItens: any[] = isObj 
+      ? (Array.isArray(cmdOuId.itens) ? cmdOuId.itens : []) 
+      : itensSelecionados;
+
+    const linhasItens = listaItens.length > 0
+      ? listaItens.map((it: any) => {
+          const qtd = it.quantidade || it.qtd || 1;
+          const nome = it.nome || 'Item';
+          const sub = Number(it.subtotal || it.total || (it.valorUnitario ? it.valorUnitario * qtd : 0));
+          return `• ${qtd}x ${nome} — R$ ${sub.toFixed(2).replace('.', ',')}`;
+        }).join('\n')
+      : '• (Itens confirmados no sistema da escola)';
+
+    let msg = `🎄 *CENTRO EDUCACIONAL PEDRO RIZZI* 🎄\n`;
+    msg += `✨ *NATAL LUZ 2026 - COMPROVANTE DA COMANDA* ✨\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `📄 *Comanda Nº:* #${comandaId.toString().padStart(5, '0')}\n`;
+    msg += `📄 *Comanda Nº:* #${idVal.toString().padStart(5, '0')}\n`;
     msg += `📅 *Data:* ${dataHora}\n\n`;
-    msg += `👤 *Estudante:* ${estudante.trim()}\n`;
-    if (turma.trim()) msg += `🏫 *Turma:* ${turma.trim()}\n`;
-    if (professor.trim()) msg += `👩‍🏫 *Prof(a):* ${professor.trim()}\n`;
-    msg += `👨‍👩‍👧 *Responsável:* ${responsavel.trim()}\n`;
-    msg += `📞 *Telefone:* ${telefone.trim()}\n\n`;
-    msg += `📦 *ITENS ENCOMENDADOS:*\n${linhasItens}\n\n`;
-    msg += `💰 *TOTAL DO PEDIDO: R$ ${totalGeral.toFixed(2).replace('.', ',')}*\n`;
-    msg += `💳 *Forma de Pagamento:* ${formaPagamento === 'pix' ? 'PIX' : 'DINHEIRO'}\n`;
-    msg += `🎟️ *Ticket Entregue:* ${ticketEntregue ? 'SIM (Retirado) ✅' : 'NÃO (Pendente de Retirada) ⏳'}\n`;
+    msg += `🧒 *Estudante:* ${nomeEstudante}\n`;
+    if (nomeTurma) msg += `🏫 *Turma:* ${nomeTurma}\n`;
+    if (nomeProf) msg += `👩‍🏫 *Prof(a):* ${nomeProf}\n`;
+    msg += `👨‍👩‍👧 *Responsável:* ${nomeResp}\n`;
+    if (numTel) msg += `📞 *WhatsApp:* ${numTel}\n\n`;
+    msg += `📦 *ITENS DA COMANDA:*\n${linhasItens}\n\n`;
+    msg += `💰 *VALOR TOTAL: R$ ${totalVal.toFixed(2).replace('.', ',')}*\n`;
+    msg += `💳 *Forma de Pagamento:* ${forma === 'pix' ? 'PIX' : 'DINHEIRO'}\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `⚠️ *COMUNICADO IMPORTANTE AO RESPONSÁVEL:*\n`;
+    msg += `📌 *A comprovação da compra está sujeita à conferência do recibo/comprovante do Pix pela tesouraria da APP.*\n`;
+    msg += `🎟️ *Após a conferência, o ticket oficial de compra será enviado diretamente pela criança na sala de aula para ser utilizado no dia da festa.*\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
-    if (formaPagamento === 'pix') {
-      msg += `📲 *PAGAMENTO PIX (VALOR EXATO: R$ ${totalGeral.toFixed(2).replace('.', ',')}):*\n`;
-      msg += `_O código Pix Copia e Cola será enviado na mensagem seguinte para você copiar com apenas 1 toque e colar no app do seu banco!_\n\n`;
-      msg += `ℹ️ *Chave Pix Alternativa (E-mail):* ${CHAVE_PIX_CEPR}\n`;
-      msg += `📌 Após pagar, envie o comprovante para este WhatsApp da APP: ${WHATSAPP_APP}\n`;
+    if (forma === 'pix') {
+      msg += `📲 *DADOS DO PIX ESCOLAR:*\n`;
+      msg += `🔑 *Chave Pix (E-mail):* ${CHAVE_PIX_CEPR}\n`;
+      msg += `🏦 *Beneficiário:* ${NOME_RECEBEDOR_PIX}\n`;
+      msg += `💵 *Valor Exato:* R$ ${totalVal.toFixed(2).replace('.', ',')}\n\n`;
+      if (payloadPix) {
+        msg += `📋 *Pix Copia e Cola:*\n\`\`\`\n${payloadPix}\n\`\`\`\n\n`;
+      }
+      msg += `📌 Caso ainda não tenha anexado, favor enviar o comprovante para este WhatsApp da APP: ${WHATSAPP_APP}\n\n`;
     } else {
       msg += `💵 *PAGAMENTO EM DINHEIRO:*\n`;
-      msg += `Por favor, realize o pagamento diretamente na administração da escola ou com os professores.\n`;
+      msg += `Por favor, realize o pagamento diretamente na administração da escola ou com a comissão organizadora.\n\n`;
     }
 
-    msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `_Obrigado por apoiar a nossa escola! Desejamos um Feliz Natal!_ ❤️✨`;
+    msg += `❤️ *Agradecemos por apoiar a nossa escola! Desejamos um Feliz Natal!* ✨`;
 
     return msg;
   };
@@ -339,7 +367,19 @@ export const NatalLuz: React.FC = () => {
         });
       }
 
-      const textoWhats = gerarTextoWhatsApp(comandaId, payloadPix);
+      const textoWhats = gerarTextoWhatsApp({
+        id: comandaId,
+        estudante,
+        turma,
+        professor,
+        responsavel,
+        telefone,
+        total: totalGeral,
+        formaPagamento,
+        ticketEntregue,
+        itens: itensSelecionados,
+        pixPayload: payloadPix
+      });
 
       setModalSucesso({
         id: comandaId,
@@ -1511,11 +1551,11 @@ export const NatalLuz: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              const texto = gerarTextoWhatsApp(cmd.id, cmd.pixPayload);
+                              const texto = gerarTextoWhatsApp(cmd);
                               handleAbrirWhatsApp(cmd.telefone, texto);
                             }}
-                            className="p-2 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/50 text-xs font-bold transition flex items-center gap-1"
-                            title="Reenviar resumo pelo WhatsApp"
+                            className="p-2 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/50 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                            title="Reenviar comanda completa pelo WhatsApp"
                           >
                             <Send className="w-3.5 h-3.5" />
                           </button>
