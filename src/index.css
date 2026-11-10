@@ -64,12 +64,10 @@
     display: none !important;
   }
 
-  /* Força quebra de página por grupo de 4 comandas */
+  /* Força quebra de página por turma ou relatório */
   .page-break-comandas {
     page-break-after: always !important;
     break-after: page !important;
-    height: 280mm !important;
-    max-height: 280mm !important;
     box-sizing: border-box !important;
   }
 
