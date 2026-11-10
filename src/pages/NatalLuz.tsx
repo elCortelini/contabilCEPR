@@ -114,8 +114,9 @@ export const NatalLuz: React.FC = () => {
 
   // Copiar mensagem completa com link público para os pais no WhatsApp
   const handleCopiarTextoPais = () => {
-    const baseUrl = window.location.origin + window.location.pathname;
-    const linkPublico = `${baseUrl}?tab=pedido-natal`;
+    const rawPath = window.location.pathname.replace(/\/+$/, '');
+    const baseUrl = window.location.origin + rawPath;
+    const linkPublico = `${baseUrl}/natalLuz`;
 
     const texto = `🎄 *CENTRO EDUCACIONAL PEDRO RIZZI* 🎄\n` +
       `✨ *NATAL LUZ 2026 - COMPRA ANTECIPADA DE COMANDAS* ✨\n` +

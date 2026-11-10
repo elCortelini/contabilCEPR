@@ -23,15 +23,21 @@ export default function App() {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const pathname = window.location.pathname.toLowerCase();
-      const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '');
+      const hash = window.location.hash.toLowerCase();
+
       return (
+        pathname.includes('natalluz') ||
+        pathname.includes('pedido-natal') ||
+        pathname.endsWith('/natal') ||
+        hash.includes('natalluz') ||
+        hash.includes('pedido-natal') ||
+        hash.includes('natal') ||
+        urlParams.get('tab') === 'natalluz' ||
+        urlParams.get('tab') === 'natal-luz' ||
         urlParams.get('tab') === 'pedido-natal' ||
         urlParams.get('tab') === 'natal-publico' ||
-        urlParams.get('pedido') === 'natal' ||
-        pathname === '/pedido-natal' ||
-        pathname === '/natal' ||
-        hash === 'pedido-natal' ||
-        hash === 'natal'
+        urlParams.get('tab') === 'natal' ||
+        urlParams.get('pedido') === 'natal'
       );
     } catch {
       return false;
