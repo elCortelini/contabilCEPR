@@ -138,7 +138,7 @@ export const NatalLuz: React.FC = () => {
       `2️⃣ Escolha os itens do cardápio;\n` +
       `3️⃣ Pague pelo Pix oficial da escola com o código do seu pedido;\n` +
       `4️⃣ Anexe o comprovante direto na tela (ou envie no WhatsApp da APP ${WHATSAPP_APP}).\n\n` +
-      `🎟️ *Importante:* Os tickets impressos serão entregues diretamente para o aluno na sala de aula antes da festa!\n\n` +
+      `🎟️ *Importante:* Os tickets comprados serão entregues no dia da festa, apresentando o nome do aluno e turma do mesmo.\n\n` +
       `Contamos com o apoio de todos! ❤️✨`;
 
     navigator.clipboard.writeText(texto);
@@ -282,8 +282,8 @@ export const NatalLuz: React.FC = () => {
     msg += `💳 *Forma de Pagamento:* ${forma === 'pix' ? 'PIX' : 'DINHEIRO'}\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     msg += `⚠️ *COMUNICADO IMPORTANTE AO RESPONSÁVEL:*\n`;
-    msg += `📌 *A comprovação da compra está sujeita à conferência do recibo/comprovante do Pix pela tesouraria da APP.*\n`;
-    msg += `🎟️ *Após a conferência, o ticket oficial de compra será enviado diretamente pela criança na sala de aula para ser utilizado no dia da festa.*\n`;
+    msg += `📌 *A compra será confirmada após a conferência do comprovante pela tesouraria da APP.*\n`;
+    msg += `🎟️ *Os tickets comprados serão entregues no dia da festa, apresentando o nome do aluno e turma do mesmo.*\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
     if (forma === 'pix') {
@@ -742,7 +742,9 @@ export const NatalLuz: React.FC = () => {
 
   return (
     <div className="min-h-full bg-slate-900 text-slate-100 pb-28 md:pb-12">
-      {/* Banner Superior Natal Luz */}
+      {/* Conteúdo da Página (Ocultado em Impressão para gerar exclusivamente o Relatório) */}
+      <div className={modalImpressaoComandas || modalBalancete ? 'no-print print:hidden' : ''}>
+        {/* Banner Superior Natal Luz */}
       <div className="relative overflow-hidden bg-gradient-to-r from-red-800 via-emerald-900 to-red-950 border-b border-amber-500/30 px-4 py-5 sm:px-6 shadow-xl">
         <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -1989,6 +1991,7 @@ export const NatalLuz: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
       </div>
 
       {/* ============================================================== */}

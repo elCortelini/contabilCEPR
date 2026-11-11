@@ -476,8 +476,8 @@ export const PedidoNatalPublico: React.FC = () => {
       `💳 *Forma de Pagamento:* PIX\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `⚠️ *AVISO SOBRE A VALIDAÇÃO E ENTREGA:*\n` +
-      `📌 *A comprovação da compra está sujeita à conferência do recibo/comprovante do Pix pela tesouraria da APP.*\n` +
-      `🎟️ *Após a conferência, o ticket oficial de compra será enviado diretamente pela criança na sala de aula para ser utilizado no dia da festa.*\n` +
+      `📌 *A compra será confirmada após a conferência do comprovante pela tesouraria da APP.*\n` +
+      `🎟️ *Os tickets comprados serão entregues no dia da festa, apresentando o nome do aluno e turma do mesmo.*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `_Guarde esta mensagem como comprovante da sua comanda!_ ❤️✨`;
   }, [pedidoCriado, nomeAlunoFinal, turmaSelecionada, responsavel, telefone, linhasItensTexto]);
@@ -492,7 +492,7 @@ export const PedidoNatalPublico: React.FC = () => {
     return `https://api.whatsapp.com/send?phone=${numLimpo}&text=${encodeURIComponent(textoComandaWhatsApp)}`;
   }, [textoComandaWhatsApp, telefone]);
 
-  // Enviar comprovante anexado e disparar ticket para o WhatsApp do responsável
+  // Enviar comprovante anexado (sem disparar mensagens automáticas)
   const handleEnviarComprovante = async () => {
     if (!pedidoCriado || !comprovanteBase64 || enviandoComprovante) return;
 
@@ -502,17 +502,9 @@ export const PedidoNatalPublico: React.FC = () => {
       await api.updateNatalComprovante(pedidoCriado.id, comprovanteBase64);
       setComprovanteEnviadoSucesso(true);
       setPasso(4);
-
-      // Envia automaticamente para o WhatsApp do responsável
-      if (whatsappUrlResponsavel) {
-        window.open(whatsappUrlResponsavel, '_blank');
-      }
     } catch (err) {
       setComprovanteEnviadoSucesso(true);
       setPasso(4);
-      if (whatsappUrlResponsavel) {
-        window.open(whatsappUrlResponsavel, '_blank');
-      }
     } finally {
       setEnviandoComprovante(false);
     }
@@ -929,7 +921,7 @@ export const PedidoNatalPublico: React.FC = () => {
                 <div>
                   <h3 className="font-bold text-white text-base">Comprovação do Pagamento</h3>
                   <p className="text-xs text-slate-300">
-                    Escolha a opção mais fácil para você confirmar os tickets de <strong className="text-white">{nomeAlunoFinal}</strong>:
+                    Anexe o print ou foto do comprovante para validar os tickets de <strong className="text-white">{nomeAlunoFinal}</strong>:
                   </p>
                 </div>
               </div>
@@ -986,7 +978,7 @@ export const PedidoNatalPublico: React.FC = () => {
                 </div>
               )}
 
-              {/* AS 4 OPÇÕES DE ENVIO / RASTREAMENTO */}
+              {/* AS OPÇÕES DE ENVIO: COLAR PRINT OU GALERIA/CÂMERA */}
               <div className="space-y-3 pt-1">
                 {/* OPÇÃO 1: COLAR PRINT (CLIPBOARD) */}
                 <div className="bg-slate-900/80 border border-slate-700/80 hover:border-amber-400/60 rounded-xl p-3.5 transition-all">
@@ -1047,52 +1039,6 @@ export const PedidoNatalPublico: React.FC = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* OPÇÃO 3: RECEBER COMANDA NO MEU WHATSAPP */}
-                <div className="bg-slate-900/80 border border-slate-700/80 hover:border-emerald-400/60 rounded-xl p-3.5 transition-all">
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
-                      3
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                        <MessageCircle className="w-4 h-4 text-emerald-400" />
-                        Receber Ticket no Meu WhatsApp
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Abre o seu próprio WhatsApp com os itens comprados e o código do pedido prontos para você guardar.
-                      </p>
-                      <a
-                        href={whatsappUrlResponsavel}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-2.5 w-full py-2.5 px-3 rounded-lg bg-emerald-700/40 hover:bg-emerald-700/60 border border-emerald-500/40 text-emerald-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                      >
-                        <MessageCircle className="w-4 h-4 text-emerald-300" />
-                        <span>Abrir no Meu WhatsApp ({telefone || 'Meu Número'})</span>
-                        <ExternalLink className="w-3.5 h-3.5 text-emerald-300 ml-auto" />
-                      </a>
-                    </div>
-                  </div>
-                </div>
-
-                {/* OPÇÃO 4: RASTREAMENTO AUTOMÁTICO PELO CÓDIGO NL-XXXX */}
-                <div className="bg-slate-900/90 border border-amber-400/30 rounded-xl p-3.5">
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
-                      4
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-amber-300 flex items-center gap-1.5">
-                        <Info className="w-4 h-4 text-amber-400" />
-                        Rastreamento Automático pelo Código {pedidoCriado.codigoPedido}
-                      </h4>
-                      <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                        Não consegue enviar o comprovante agora? Fique tranquilo! O código <strong className="text-white bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">{formatCodigoPixTxid(pedidoCriado.codigoPedido)}</strong> foi embutido no Pix. A tesouraria da APP localiza seu depósito no extrato bancário e valida os tickets do aluno automaticamente.
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -1109,7 +1055,7 @@ export const PedidoNatalPublico: React.FC = () => {
               </div>
 
               <span className="inline-block px-3 py-1 bg-emerald-400/20 text-emerald-300 rounded-full text-xs font-bold uppercase tracking-wider">
-                Pedido Registrado com Sucesso
+                Comprovante Enviado com Sucesso
               </span>
 
               <h2 className="text-3xl font-black text-white tracking-tight">
@@ -1117,7 +1063,7 @@ export const PedidoNatalPublico: React.FC = () => {
               </h2>
 
               <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
-                Comanda gerada para <strong className="text-white">{nomeAlunoFinal}</strong> (Turma <strong className="text-amber-300">{turmaSelecionada}</strong>).
+                Comprovante recebido para <strong className="text-white">{nomeAlunoFinal}</strong> (Turma <strong className="text-amber-300">{turmaSelecionada}</strong>).
               </p>
 
               {/* Itens Comprados */}
@@ -1143,38 +1089,28 @@ export const PedidoNatalPublico: React.FC = () => {
                 </div>
               </div>
 
-              {/* Aviso Obrigatório de Conferência e Envio do Ticket */}
+              {/* Aviso Obrigatório de Conferência e Entrega dos Tickets */}
               <div className="bg-amber-950/40 border border-amber-500/50 rounded-2xl p-4 text-left text-xs space-y-1.5">
                 <div className="flex items-start gap-2.5">
                   <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                   <div className="space-y-1">
                     <p className="font-bold text-amber-300 text-xs">Aviso Importante ao Responsável:</p>
                     <p className="text-slate-200 text-xs leading-relaxed">
-                      📌 <strong>A comprovação da compra está sujeita à conferência do recibo/comprovante do Pix pela tesouraria da APP.</strong>
+                      📌 <strong>A compra será confirmada após a conferência do comprovante pela tesouraria da APP.</strong>
                     </p>
                     <p className="text-slate-300 text-xs leading-relaxed">
-                      🎟️ Após a conferência do pagamento, o ticket oficial de compra será enviado diretamente pela criança na sala de aula para ser utilizado no dia da festa.
+                      🎟️ <strong>Os tickets comprados serão entregues no dia da festa, apresentando o nome do aluno e turma do mesmo ({nomeAlunoFinal} - Turma {turmaSelecionada}).</strong>
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Botões de Ação WhatsApp e Cópia */}
+              {/* Botão de Cópia / Salvar Comanda */}
               <div className="pt-2 space-y-2.5">
-                <a
-                  href={whatsappUrlResponsavel}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white font-black text-sm tracking-wide flex items-center justify-center gap-2 shadow-xl shadow-emerald-950 active:scale-98 transition cursor-pointer"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <span>Abrir / Reenviar Comanda no Meu WhatsApp ({telefone || 'Meu Número'})</span>
-                </a>
-
                 <button
                   type="button"
                   onClick={handleCopiarTextoComanda}
-                  className="w-full py-3 px-4 rounded-2xl bg-slate-700/80 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 border border-slate-600 active:scale-98 transition cursor-pointer"
+                  className="w-full py-3.5 px-4 rounded-2xl bg-slate-700/80 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 border border-slate-600 active:scale-98 transition cursor-pointer"
                 >
                   {copiadoComanda ? (
                     <>
@@ -1184,7 +1120,7 @@ export const PedidoNatalPublico: React.FC = () => {
                   ) : (
                     <>
                       <Copy className="w-4 h-4 text-slate-300" />
-                      <span>Copiar Texto Completo da Comanda</span>
+                      <span>Copiar Resumo da Minha Comanda</span>
                     </>
                   )}
                 </button>

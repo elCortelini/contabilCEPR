@@ -77,7 +77,10 @@ export const BalancetePrintModal: React.FC<BalancetePrintModalProps> = ({
       </div>
 
       {/* ÁREA DE IMPRESSÃO (Papel A4 Contábil) */}
-      <div className="bg-white text-slate-900 rounded-2xl p-8 sm:p-10 shadow-2xl border border-slate-300 w-full max-w-4xl print:border-none print:shadow-none print:p-4 print:max-w-none print:rounded-none page-break-balancete">
+      <div 
+        id="balancete-impressao-area"
+        className="bg-white text-slate-900 rounded-2xl p-8 sm:p-10 shadow-2xl border border-slate-300 w-full max-w-4xl print:border-none print:shadow-none print:p-4 print:max-w-none print:rounded-none page-break-balancete print:block print:m-0"
+      >
         {/* Cabeçalho Institucional */}
         <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-start">
           <div>

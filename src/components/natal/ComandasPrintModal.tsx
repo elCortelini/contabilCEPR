@@ -140,7 +140,10 @@ export const ComandasPrintModal: React.FC<ComandasPrintModalProps> = ({
       </div>
 
       {/* ÁREA DE IMPRESSÃO: Formato Oficial de Relatório / Protocolo */}
-      <div className="w-full max-w-5xl space-y-6 print:space-y-0 print:max-w-none print:w-full">
+      <div 
+        id="relatorio-impressao-area"
+        className="w-full max-w-5xl space-y-6 print:space-y-0 print:max-w-none print:w-full print:m-0 print:p-0 print:block"
+      >
         {turmasAgrupadas.map(({ turmaNome, comandas: listaComandas, totalGeral }) => (
           <div
             key={turmaNome}
