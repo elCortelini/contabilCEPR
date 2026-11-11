@@ -41,7 +41,6 @@ import { TURMAS_OFICIAIS, ALUNOS_POR_TURMA } from '../data/turmasAlunosOficiais'
 
 // Cardápio oficial do Natal Luz CEPR
 const PRODUTOS = [
-  { id: 'teste_pix', nome: '🧪 Teste Pix (R$ 0,02)', valorUnitario: 0.02, icone: '🧪', desc: 'Item para teste de pagamento e validação do fluxo Pix' },
   { id: 'hotdog', nome: 'Cachorro-quente', valorUnitario: 10.00, icone: '🌭', desc: 'Molho artesanal e batata palha' },
   { id: 'pastel', nome: 'Pastel', valorUnitario: 10.00, icone: '🥟', desc: 'Frito na hora, crocante' },
   { id: 'refri', nome: 'Refrigerante', valorUnitario: 7.00, icone: '🥤', desc: 'Lata 350ml gelada' },

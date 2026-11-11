@@ -56,7 +56,6 @@ import { TURMAS_OFICIAIS } from '../data/turmasAlunosOficiais';
 
 // Cardápio oficial da ficha enviada
 const PRODUTOS_INICIAIS = [
-  { id: 'teste_pix', nome: '🧪 Teste Pix (R$ 0,02)', valorUnitario: 0.02, icone: '🧪' },
   { id: 'hotdog', nome: 'Cachorro-quente', valorUnitario: 10.00, icone: '🌭' },
   { id: 'pastel', nome: 'Pastel', valorUnitario: 10.00, icone: '🥟' },
   { id: 'refri', nome: 'Refrigerante', valorUnitario: 7.00, icone: '🥤' },
