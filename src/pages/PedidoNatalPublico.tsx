@@ -388,37 +388,7 @@ export const PedidoNatalPublico: React.FC = () => {
     e.target.value = '';
   };
 
-  // Colar print da área de transferência (Opção 1)
-  const [colandoClipboard, setColandoClipboard] = useState(false);
-  const handleColarClipboard = async () => {
-    setColandoClipboard(true);
-    try {
-      if (!navigator.clipboard?.read) {
-        alert('Seu navegador bloqueou a leitura direta. Pressione Ctrl+V no teclado ou use a opção "Tirar Foto / Galeria".');
-        return;
-      }
-      const clipboardItems = await navigator.clipboard.read();
-      let achouImagem = false;
-      for (const item of clipboardItems) {
-        const imgType = item.types.find(t => t.startsWith('image/'));
-        if (imgType) {
-          const blob = await item.getType(imgType);
-          processImageBlob(blob);
-          achouImagem = true;
-          break;
-        }
-      }
-      if (!achouImagem) {
-        alert('Nenhuma imagem encontrada na sua área de transferência. Tire um print primeiro e tente novamente!');
-      }
-    } catch (err: any) {
-      alert('Permita o acesso à área de transferência para colar ou use o atalho Ctrl+V / opção da câmera.');
-    } finally {
-      setColandoClipboard(false);
-    }
-  };
-
-  // Capturar colagem global (Ctrl+V) no Passo 3
+  // Capturar colagem global (Ctrl+V) no Passo 3 se disponível no teclado
   useEffect(() => {
     if (passo !== 3) return;
 
@@ -978,66 +948,35 @@ export const PedidoNatalPublico: React.FC = () => {
                 </div>
               )}
 
-              {/* AS OPÇÕES DE ENVIO: COLAR PRINT OU GALERIA/CÂMERA */}
-              <div className="space-y-3 pt-1">
-                {/* OPÇÃO 1: COLAR PRINT (CLIPBOARD) */}
-                <div className="bg-slate-900/80 border border-slate-700/80 hover:border-amber-400/60 rounded-xl p-3.5 transition-all">
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
-                      1
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                        <ClipboardCheck className="w-4 h-4 text-amber-400" />
-                        Colar Print do Pix
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Tirou print da tela do banco? Clique abaixo para colar direto, ou pressione <kbd className="bg-slate-800 text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-slate-700">Ctrl+V</kbd>.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleColarClipboard}
-                        disabled={colandoClipboard}
-                        className="mt-2.5 w-full py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-amber-400/40 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer"
-                      >
-                        <ClipboardCheck className="w-4 h-4 text-amber-400" />
-                        <span>{colandoClipboard ? 'Lendo área de transferência...' : 'Colar Print Copiado'}</span>
-                      </button>
-                    </div>
+              {/* ENVIAR COMPROVANTE: TIRAR FOTO OU ESCOLHER DA GALERIA */}
+              <div className="pt-1">
+                <div className="bg-slate-900/80 border border-slate-700/80 hover:border-emerald-400/60 rounded-2xl p-4 transition-all text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+                    <Camera className="w-6 h-6" />
                   </div>
-                </div>
-
-                {/* OPÇÃO 2: TIRAR FOTO OU ESCOLHER DA GALERIA */}
-                <div className="bg-slate-900/80 border border-slate-700/80 hover:border-emerald-400/60 rounded-xl p-3.5 transition-all">
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-xs shrink-0">
-                      2
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                        <Camera className="w-4 h-4 text-emerald-400" />
-                        Tirar Foto ou Escolher da Galeria
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Tire foto do comprovante com a câmera ou selecione da galeria/prints do celular.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="mt-2.5 w-full py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer"
-                      >
-                        <Camera className="w-4 h-4 text-emerald-400" />
-                        <span>Tirar Foto / Escolher da Galeria</span>
-                      </button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*,application/pdf"
-                        onChange={handleArquivoComprovante}
-                        className="hidden"
-                      />
-                    </div>
+                  <div>
+                    <h4 className="text-base font-bold text-white">
+                      Tirar Foto ou Escolher da Galeria
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Tire foto do comprovante com a câmera ou selecione da galeria/prints do celular.
+                    </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-950 active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    <Camera className="w-5 h-5" />
+                    <span>Tirar Foto / Escolher da Galeria</span>
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={handleArquivoComprovante}
+                    className="hidden"
+                  />
                 </div>
               </div>
             </div>
@@ -1105,35 +1044,18 @@ export const PedidoNatalPublico: React.FC = () => {
                 </div>
               </div>
 
-              {/* Botão de Cópia / Salvar Comanda */}
-              <div className="pt-2 space-y-2.5">
+              {/* Botão de Destaque: Fazer Outro Pedido */}
+              <div className="pt-3">
                 <button
                   type="button"
-                  onClick={handleCopiarTextoComanda}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-slate-700/80 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 border border-slate-600 active:scale-98 transition cursor-pointer"
+                  onClick={handleNovoPedido}
+                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-xl shadow-amber-400/20 active:scale-[0.98] transition-all cursor-pointer border-2 border-amber-300"
                 >
-                  {copiadoComanda ? (
-                    <>
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      <span>Comanda Copiada para a Área de Transferência!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4 text-slate-300" />
-                      <span>Copiar Resumo da Minha Comanda</span>
-                    </>
-                  )}
+                  <Plus className="w-5 h-5 text-slate-950 stroke-[3]" />
+                  <span>FAZER OUTRO PEDIDO</span>
                 </button>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={handleNovoPedido}
-              className="text-xs text-amber-400 hover:underline py-2 cursor-pointer"
-            >
-              Fazer outro pedido para outro aluno
-            </button>
           </div>
         )}
 
