@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Search, Trash2, TrendingUp, Wallet, Printer, Calendar, RefreshCw, Pencil, Sun, Moon, Clock, SlidersHorizontal } from 'lucide-react';
 import { api } from '../services/api';
 import { ReciboPdf } from '../components/ReciboPdf';
+import { ListaImpressaoModal } from '../components/ListaImpressaoModal';
 import { formatLocalDate, getTodayLocalDate } from '../utils/formatters';
 
 export const Entradas: React.FC = () => {
@@ -24,6 +25,7 @@ export const Entradas: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [reciboItem, setReciboItem] = useState<any>(null);
+  const [printModalOpen, setPrintModalOpen] = useState(false);
 
   // Ajuste de saldo flag
   const [isAjuste, setIsAjuste] = useState(false);
@@ -166,12 +168,32 @@ export const Entradas: React.FC = () => {
     });
 
   const totalFiltrado = filtered.reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0);
+  const carteiraSelecionadaNome = carteiras.find((c) => c.id.toString() === selectedCarteira)?.nome;
 
   return (
     <div className="p-6 space-y-6">
       {/* Recibo Modal */}
       {reciboItem && (
         <ReciboPdf item={reciboItem} onClose={() => setReciboItem(null)} />
+      )}
+
+      {/* Modal de Impressão da Lista Filtrada */}
+      {printModalOpen && (
+        <ListaImpressaoModal
+          tipo="entradas"
+          itens={filtered}
+          total={totalFiltrado}
+          filtros={{
+            search,
+            carteiraNome: carteiraSelecionadaNome,
+            forma: selectedForma,
+            turno: selectedTurno,
+            tipoAjuste: selectedTipoAjuste,
+            dataInicio,
+            dataFim,
+          }}
+          onClose={() => setPrintModalOpen(false)}
+        />
       )}
 
       {/* Header & Controls */}
@@ -184,11 +206,21 @@ export const Entradas: React.FC = () => {
           <p className="text-xs text-slate-500 mt-0.5">Histórico de vendas da cantina com filtro por Turno (Matutino vs Vespertino)</p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="text-right">
             <span className="text-xs text-slate-500 font-medium">Total Filtrado ({filtered.length} itens)</span>
             <p className="text-xl font-black text-emerald-600">{formatBrl(totalFiltrado)}</p>
           </div>
+          <button
+            type="button"
+            onClick={() => setPrintModalOpen(true)}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-semibold text-xs shadow-md transition cursor-pointer"
+            title="Imprimir relatório da lista filtrada"
+          >
+            <Printer className="w-4 h-4 text-emerald-400" />
+            Imprimir Lista
+          </button>
           <button
             onClick={handleOpenCreate}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md shadow-emerald-600/30 transition cursor-pointer"
