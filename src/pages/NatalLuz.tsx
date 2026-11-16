@@ -106,6 +106,8 @@ export const NatalLuz: React.FC = () => {
 
   // Modal de Sucesso / Envio WhatsApp
   const [modalSucesso, setModalSucesso] = useState<any | null>(null);
+  const [confirmandoPixModal, setConfirmandoPixModal] = useState(false);
+  const [salvandoConfirmacaoPix, setSalvandoConfirmacaoPix] = useState(false);
   const [copiadoPix, setCopiadoPix] = useState(false);
   const [copiadoTexto, setCopiadoTexto] = useState(false);
   const [copiadoLink, setCopiadoLink] = useState(false);
@@ -389,6 +391,7 @@ export const NatalLuz: React.FC = () => {
       setModalSucesso({
         id: comandaId,
         estudante,
+        turma,
         responsavel,
         telefone,
         total: totalGeral,
@@ -396,8 +399,10 @@ export const NatalLuz: React.FC = () => {
         ticketEntregue,
         itens: itensSelecionados,
         pixPayload: payloadPix,
-        textoWhats
+        textoWhats,
+        status: 'aguardando_comprovante'
       });
+      setConfirmandoPixModal(false);
 
       // Recarrega listagens
       await carregarDados();
@@ -429,6 +434,36 @@ export const NatalLuz: React.FC = () => {
     navigator.clipboard.writeText(texto);
     setCopiadoTexto(true);
     setTimeout(() => setCopiadoTexto(false), 2500);
+  };
+
+  // Confirmar recebimento do Pix diretamente no modal de sucesso (sem anexo)
+  const handleConfirmarRecebimentoPixModal = async (marcarEntregue: boolean) => {
+    if (!modalSucesso?.id) return;
+    try {
+      setSalvandoConfirmacaoPix(true);
+      const id = Number(modalSucesso.id);
+      await api.updateNatalStatus(id, 'pago');
+      if (marcarEntregue) {
+        await api.updateNatalTicket(id, true);
+      }
+      setComandas((prev) =>
+        prev.map((c) =>
+          c.id === id
+            ? { ...c, status: 'pago', ticketEntregue: marcarEntregue }
+            : c
+        )
+      );
+      setModalSucesso((prev: any) =>
+        prev ? { ...prev, status: 'pago', ticketEntregue: marcarEntregue } : null
+      );
+      setConfirmandoPixModal(false);
+      api.getNatalResumo().then((res) => setResumoCozinha(res));
+    } catch (e) {
+      console.error('Erro ao confirmar recebimento do Pix:', e);
+      alert('Erro ao confirmar recebimento do Pix.');
+    } finally {
+      setSalvandoConfirmacaoPix(false);
+    }
   };
 
   // Alternar status de ticket na listagem
@@ -2310,8 +2345,90 @@ export const NatalLuz: React.FC = () => {
               </div>
             )}
 
+            {/* Confirmação de Recebimento do Pix (Sem Anexo de Imagem) */}
+            {modalSucesso.formaPagamento === 'pix' && (
+              <div className="pt-1">
+                {modalSucesso.status === 'pago' ? (
+                  <div className="bg-emerald-900/60 border border-emerald-500/70 rounded-2xl p-4 text-center space-y-1.5 shadow-lg shadow-emerald-950">
+                    <div className="flex items-center justify-center gap-2 text-emerald-300 font-black text-sm">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                      <span>Recebimento do Pix Confirmado!</span>
+                    </div>
+                    <p className="text-xs text-emerald-200/90">
+                      Status registrado como <strong>Pago</strong> sem necessidade de imagem de comprovante.
+                    </p>
+                    <div className="text-[11px] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-700/50 mt-1 font-semibold">
+                      {modalSucesso.ticketEntregue ? (
+                        <>
+                          <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Fichas/Tickets físicos: Entregues</span>
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="w-3.5 h-3.5 text-amber-300" />
+                          <span>Fichas/Tickets físicos: Pendentes</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : confirmandoPixModal ? (
+                  <div className="bg-slate-950 border border-emerald-500/60 rounded-2xl p-4 space-y-3 shadow-xl">
+                    <div className="text-center space-y-1">
+                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                        Confirmar Recebimento do Pix
+                      </span>
+                      <p className="text-xs text-slate-300">
+                        O valor de <strong className="text-amber-400">R$ {modalSucesso.total.toFixed(2).replace('.', ',')}</strong> já foi recebido? Deseja também marcar as fichas como entregues agora?
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      <button
+                        type="button"
+                        disabled={salvandoConfirmacaoPix}
+                        onClick={() => handleConfirmarRecebimentoPixModal(true)}
+                        className="py-3 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg transition disabled:opacity-50"
+                      >
+                        <CheckCheck className="w-4 h-4" />
+                        <span>Sim, Entregar Fichas</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={salvandoConfirmacaoPix}
+                        onClick={() => handleConfirmarRecebimentoPixModal(false)}
+                        className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center justify-center gap-2 transition disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Apenas Confirmar Pix</span>
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={salvandoConfirmacaoPix}
+                      onClick={() => setConfirmandoPixModal(false)}
+                      className="w-full text-center text-xs text-slate-400 hover:text-slate-200 underline pt-1 font-medium"
+                    >
+                      Voltar / Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmandoPixModal(true)}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-white font-black text-sm tracking-wide flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-950/40 border border-emerald-400/30 active:scale-98 transition"
+                    title="Confirmar o recebimento do Pix sem precisar anexar foto de comprovante"
+                  >
+                    <CheckCircle2 className="w-5 h-5 text-emerald-100" />
+                    <span>Confirmar Recebimento do Pix (Sem Anexo)</span>
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Ações Secundárias */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className={`grid ${modalSucesso.status === 'pago' ? 'grid-cols-3' : 'grid-cols-2'} gap-2 pt-1`}>
               <button
                 type="button"
                 onClick={() => handleCopiarTexto(modalSucesso.textoWhats)}
@@ -2330,9 +2447,28 @@ export const NatalLuz: React.FC = () => {
                 )}
               </button>
 
+              {modalSucesso.status === 'pago' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedIds([Number(modalSucesso.id)]);
+                    setTurmaImpressaoLote(modalSucesso.turma || 'todas');
+                    setModalImpressaoComandas(true);
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition border border-indigo-500/40 shadow"
+                  title="Imprimir esta comanda"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Imprimir</span>
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={() => setModalSucesso(null)}
+                onClick={() => {
+                  setModalSucesso(null);
+                  setConfirmandoPixModal(false);
+                }}
                 className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition border border-slate-700"
               >
                 Nova Comanda
