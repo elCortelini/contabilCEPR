@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
-export default defineConfig({
-  base: './', // Suporte a caminhos relativos para GitHub Pages e hospedagem estática
+export default defineConfig(({ mode }) => ({
+  base: mode === 'development' ? '/' : '/contabilCEPR/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -20,4 +20,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
