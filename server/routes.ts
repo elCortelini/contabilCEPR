@@ -824,7 +824,7 @@ router.post('/public/natal/pedidos', (req, res) => {
     } = req.body;
 
     const agora = new Date().toISOString();
-    const statusInicial = comprovante ? 'pendente_conferencia' : 'aguardando_comprovante';
+    const statusInicial = req.body.status || (formaPagamento === 'dinheiro' ? 'pago' : (comprovante ? 'pendente_conferencia' : 'aguardando_comprovante'));
 
     // Inserir primeiro para obter o ID único
     const stmt = db.prepare(`
@@ -992,7 +992,7 @@ router.post('/natal/comandas', (req, res) => {
     } = req.body;
 
     const agora = new Date().toISOString();
-    const statusFinal = status || (formaPagamento === 'dinheiro' ? 'pago' : 'pago');
+    const statusFinal = status || (formaPagamento === 'dinheiro' ? 'pago' : 'aguardando_comprovante');
 
     const stmt = db.prepare(`
       INSERT INTO comandas_natal (

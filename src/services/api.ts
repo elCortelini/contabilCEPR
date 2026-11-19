@@ -1091,11 +1091,12 @@ export const api = {
   async createNatalComanda(comanda: any) {
     const id = comanda.id || Date.now();
     const codigoPedido = comanda.codigoPedido || `NL-${String(id).slice(-4)}`;
+    const statusFinal = comanda.status || (comanda.formaPagamento === 'dinheiro' ? 'pago' : 'aguardando_comprovante');
     const payload = {
       ...comanda,
       id,
       codigoPedido,
-      status: comanda.status || 'aguardando_comprovante',
+      status: statusFinal,
       ticketEntregue: Boolean(comanda.ticketEntregue),
       criadaEm: comanda.criadaEm || new Date().toISOString()
     };
@@ -1109,7 +1110,7 @@ export const api = {
         const res = await fetch('/api/public/natal/pedidos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(comanda)
+          body: JSON.stringify(payload)
         });
         if (res.ok) return await res.json();
       } catch (e) {

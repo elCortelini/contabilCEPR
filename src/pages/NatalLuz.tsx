@@ -268,6 +268,9 @@ export const NatalLuz: React.FC = () => {
         }).join('\n')
       : '• (Itens confirmados no sistema da escola)';
 
+    const statusVal = isObj ? cmdOuId.status : (forma === 'dinheiro' ? 'pago' : 'aguardando_comprovante');
+    const isPago = statusVal === 'pago' || statusVal === 'entregue';
+
     let msg = `🎄 *CENTRO EDUCACIONAL PEDRO RIZZI* 🎄\n`;
     msg += `✨ *NATAL LUZ 2026 - COMPROVANTE DA COMANDA* ✨\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -283,8 +286,12 @@ export const NatalLuz: React.FC = () => {
     msg += `💳 *Forma de Pagamento:* ${forma === 'pix' ? 'PIX' : 'DINHEIRO'}\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     msg += `⚠️ *COMUNICADO IMPORTANTE AO RESPONSÁVEL:*\n`;
-    msg += `📌 *A compra será confirmada após a conferência do comprovante pela tesouraria da APP.*\n`;
-    msg += `🎟️ *Os tickets comprados serão entregues no dia da festa, apresentando o nome do aluno e turma do mesmo.*\n`;
+    if (isPago || forma === 'dinheiro') {
+      msg += `✅ *Pagamento do valor recebido e confirmado com sucesso!*\n`;
+    } else {
+      msg += `📌 *A compra será confirmada após a conferência do comprovante pela tesouraria da APP.*\n`;
+    }
+    msg += `🎟️ *Os tickets físicos dos itens serão entregues no dia da festa, apresentando o nome do aluno e turma do mesmo.*\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
     if (forma === 'pix') {
@@ -298,7 +305,12 @@ export const NatalLuz: React.FC = () => {
       msg += `📌 Caso ainda não tenha anexado, favor enviar o comprovante para este WhatsApp da APP: ${WHATSAPP_APP}\n\n`;
     } else {
       msg += `💵 *PAGAMENTO EM DINHEIRO:*\n`;
-      msg += `Por favor, realize o pagamento diretamente na administração da escola ou com a comissão organizadora.\n\n`;
+      if (isPago || forma === 'dinheiro') {
+        msg += `✅ *Valor de R$ ${totalVal.toFixed(2).replace('.', ',')} recebido na administração da escola.*\n`;
+        msg += `🎟️ A retirada dos tickets dos itens ocorrerá no dia da festa!\n\n`;
+      } else {
+        msg += `Por favor, realize o pagamento diretamente na administração da escola ou com a comissão organizadora.\n\n`;
+      }
     }
 
     msg += `❤️ *Agradecemos por apoiar a nossa escola! Desejamos um Feliz Natal!* ✨`;
@@ -341,6 +353,10 @@ export const NatalLuz: React.FC = () => {
         });
       }
 
+      // Quando o lançamento for manual e o recebimento for em dinheiro, o valor já é considerado recebido/pago
+      const isDinheiro = formaPagamento === 'dinheiro';
+      const statusInicial = isDinheiro ? 'pago' : 'aguardando_comprovante';
+
       const dadosComanda = {
         estudante: estudante.trim(),
         turma: turma.trim(),
@@ -357,6 +373,7 @@ export const NatalLuz: React.FC = () => {
         total: totalGeral,
         formaPagamento,
         ticketEntregue,
+        status: statusInicial,
         pixPayload: payloadPix
       };
 
@@ -384,6 +401,7 @@ export const NatalLuz: React.FC = () => {
         total: totalGeral,
         formaPagamento,
         ticketEntregue,
+        status: statusInicial,
         itens: itensSelecionados,
         pixPayload: payloadPix
       });
@@ -400,7 +418,7 @@ export const NatalLuz: React.FC = () => {
         itens: itensSelecionados,
         pixPayload: payloadPix,
         textoWhats,
-        status: 'aguardando_comprovante'
+        status: statusInicial
       });
       setConfirmandoPixModal(false);
 
@@ -1134,6 +1152,18 @@ export const NatalLuz: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {formaPagamento === 'dinheiro' && (
+                  <div className="mt-3 bg-emerald-950/40 border border-emerald-600/40 rounded-xl p-3 text-xs text-emerald-200 flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-white">Recebimento em Dinheiro (Manual):</p>
+                      <p className="text-[11px] text-emerald-200/90 mt-0.5">
+                        O valor será registrado automaticamente como <strong>Recebido/Pago</strong>. As fichas/tickets físicos permanecem pendentes para entrega no dia da festa (ou podem ser marcados como entregues abaixo).
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Campo Adicional Requisitado: Ticket Entregue (Sim / Não) */}
@@ -1489,9 +1519,30 @@ export const NatalLuz: React.FC = () => {
                             </span>
                           )}
 
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            {cmd.formaPagamento === 'pix' ? '💠 Pix' : '💵 Dinheiro'}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                              {cmd.formaPagamento === 'pix' ? '💠 Pix' : '💵 Dinheiro'}
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border ${
+                                cmd.ticketEntregue
+                                  ? 'bg-emerald-950/70 text-emerald-300 border-emerald-500/40'
+                                  : 'bg-amber-950/70 text-amber-300 border-amber-500/40'
+                              }`}
+                            >
+                              {cmd.ticketEntregue ? (
+                                <>
+                                  <CheckCheck className="w-3 h-3 text-emerald-400" />
+                                  <span>Ticket Entregue</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="w-3 h-3 text-amber-400" />
+                                  <span>Ticket na Festa</span>
+                                </>
+                              )}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -2424,6 +2475,34 @@ export const NatalLuz: React.FC = () => {
                     <span>Confirmar Recebimento do Pix (Sem Anexo)</span>
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* Confirmação de Recebimento em Dinheiro (Lançamento Manual) */}
+            {modalSucesso.formaPagamento === 'dinheiro' && (
+              <div className="pt-1">
+                <div className="bg-emerald-900/60 border border-emerald-500/70 rounded-2xl p-4 text-center space-y-1.5 shadow-lg shadow-emerald-950">
+                  <div className="flex items-center justify-center gap-2 text-emerald-300 font-black text-sm">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    <span>Valor Recebido em Dinheiro!</span>
+                  </div>
+                  <p className="text-xs text-emerald-200/90">
+                    O valor de <strong>R$ {modalSucesso.total.toFixed(2).replace('.', ',')}</strong> foi registrado como <strong>Pago/Recebido</strong>.
+                  </p>
+                  <div className="text-[11px] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-700/50 mt-1 font-semibold">
+                    {modalSucesso.ticketEntregue ? (
+                      <>
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Fichas/Tickets físicos: Entregues</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-3.5 h-3.5 text-amber-300" />
+                        <span>Fichas/Tickets físicos: Entrega no dia da festa</span>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
