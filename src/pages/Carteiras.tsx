@@ -184,8 +184,8 @@ export const Carteiras: React.FC = () => {
                   </span>
                   {ajustePendente ? (
                     <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full">
-                      <AlertTriangle className="w-3 h-3" />
-                      Divergência
+                      <Clock className="w-3 h-3" />
+                      Em Conciliação
                     </span>
                   ) : (
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Carteira Ativa" />
@@ -213,21 +213,34 @@ export const Carteiras: React.FC = () => {
                   <span className="font-semibold text-rose-600">-{formatBrl(c.totalSaidas)}</span>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                  <span className="text-xs font-bold text-slate-800">Saldo Calculado:</span>
+                  <span className="text-xs font-bold text-slate-800">Saldo Contábil:</span>
                   <span className={`text-base font-black ${c.saldoAtual >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {formatBrl(c.saldoAtual)}
                   </span>
                 </div>
 
-                {/* Divergência pendente */}
+                {/* Conferência Física e Despesas a Lançar */}
                 {ajustePendente && (
-                  <div className={`text-xs flex items-center justify-between rounded-lg px-2 py-1.5 ${ajustePendente.diferenca >= 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-rose-50 border border-rose-200'}`}>
-                    <span className={`font-semibold ${ajustePendente.diferenca >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                      Dif. apurada:
-                    </span>
-                    <span className={`font-black ${ajustePendente.diferenca >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                      {ajustePendente.diferenca >= 0 ? '+' : ''}{formatBrl(ajustePendente.diferenca)}
-                    </span>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-indigo-900 flex items-center gap-1">
+                        💵 Dinheiro Real em Caixa:
+                      </span>
+                      <span className="font-black text-indigo-700 text-sm">
+                        {formatBrl(ajustePendente.saldoApurado)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200">
+                      <span className="text-[11px] font-medium text-amber-800">
+                        Despesas a Lançar:
+                      </span>
+                      <span className="font-bold text-amber-700">
+                        {formatBrl(Math.max(0, (c.saldoAtual || 0) - (ajustePendente.saldoApurado || 0)))}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 leading-tight">
+                      * Conforme for lançando as saídas, o saldo contábil se aproxima do dinheiro real.
+                    </p>
                   </div>
                 )}
 

@@ -281,19 +281,36 @@ export const Dashboard: React.FC = () => {
 
             <div className="space-y-3 mt-2">
               {data?.distribuicaoCarteiras?.map((c: any) => (
-                <div key={c.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-700 font-bold text-xs">
-                      {c.tipo === 'banco' ? <Building2 className="w-4 h-4" /> : <Wallet className="w-4 h-4" />}
+                <div key={c.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-700 font-bold text-xs">
+                        {c.tipo === 'banco' ? <Building2 className="w-4 h-4" /> : <Wallet className="w-4 h-4" />}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-800">{c.nome}</p>
+                        <p className="text-[10px] text-slate-500 capitalize">{c.tipo}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-800">{c.nome}</p>
-                      <p className="text-[10px] text-slate-500 capitalize">{c.tipo}</p>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block font-medium">Contábil</span>
+                      <span className={`text-xs font-bold ${c.saldo >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {formatBrl(c.saldo)}
+                      </span>
                     </div>
                   </div>
-                  <span className={`text-xs font-bold ${c.saldo >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {formatBrl(c.saldo)}
-                  </span>
+
+                  {c.saldoReal !== null && c.saldoReal !== undefined && (
+                    <div className="mt-2 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px] bg-indigo-50/60 rounded-lg px-2.5 py-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-indigo-900">💵 Em Caixa:</span>
+                        <span className="font-bold text-indigo-700">{formatBrl(c.saldoReal)}</span>
+                      </div>
+                      <div className="text-[10px] text-amber-700 font-medium">
+                        Pendente lançar: <strong className="font-bold">{formatBrl(c.despesasALancar)}</strong>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

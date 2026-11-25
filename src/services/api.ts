@@ -71,11 +71,21 @@ export const api = {
       const saidas = (await firebaseApi.getCollection('saidas')) as any[];
       const fornecedores = (await firebaseApi.getCollection('fornecedores')) as any[];
       const produtos = (await firebaseApi.getCollection('produtos')) as any[];
+      const ajustes = (await firebaseApi.getCollection('ajustesSaldo')) as any[];
 
       const distribuicaoCarteiras = carteiras.map((c: any) => {
         const sumEnt = entradas.filter((e: any) => Number(e.carteiraId) === Number(c.id)).reduce((acc: number, e: any) => acc + (parseFloat(e.valor) || 0), 0);
         const sumSai = saidas.filter((s: any) => Number(s.carteiraId) === Number(c.id)).reduce((acc: number, s: any) => acc + (parseFloat(s.valor) || 0), 0);
-        return { id: c.id, nome: c.nome, saldo: sumEnt - sumSai, tipo: c.tipo };
+        const saldoCalc = sumEnt - sumSai;
+        const ajustePendente = ajustes.find((a: any) => Number(a.carteiraId) === Number(c.id) && a.status === 'pendente');
+        return {
+          id: c.id,
+          nome: c.nome,
+          saldo: saldoCalc,
+          tipo: c.tipo,
+          saldoReal: ajustePendente ? ajustePendente.saldoApurado : null,
+          despesasALancar: ajustePendente ? Math.max(0, saldoCalc - (ajustePendente.saldoApurado || 0)) : 0
+        };
       });
 
       const saldoTotal = distribuicaoCarteiras.reduce((acc: number, c: any) => acc + c.saldo, 0);
@@ -153,11 +163,21 @@ export const api = {
     const saidas = getStorage('saidas', initialData.tabelas.saidas);
     const fornecedores = getStorage('fornecedores', []);
     const produtos = getStorage('produtos', []);
+    const ajustes = getStorage('ajustesSaldo', initialData.tabelas.ajustesSaldo || []);
 
     const distribuicaoCarteiras = carteiras.map((c: any) => {
-      const sumEnt = entradas.filter((e: any) => e.carteiraId === c.id).reduce((acc: number, e: any) => acc + (parseFloat(e.valor) || 0), 0);
-      const sumSai = saidas.filter((s: any) => s.carteiraId === c.id).reduce((acc: number, s: any) => acc + (parseFloat(s.valor) || 0), 0);
-      return { id: c.id, nome: c.nome, saldo: sumEnt - sumSai, tipo: c.tipo };
+      const sumEnt = entradas.filter((e: any) => Number(e.carteiraId) === Number(c.id)).reduce((acc: number, e: any) => acc + (parseFloat(e.valor) || 0), 0);
+      const sumSai = saidas.filter((s: any) => Number(s.carteiraId) === Number(c.id)).reduce((acc: number, s: any) => acc + (parseFloat(s.valor) || 0), 0);
+      const saldoCalc = sumEnt - sumSai;
+      const ajustePendente = ajustes.find((a: any) => Number(a.carteiraId) === Number(c.id) && a.status === 'pendente');
+      return {
+        id: c.id,
+        nome: c.nome,
+        saldo: saldoCalc,
+        tipo: c.tipo,
+        saldoReal: ajustePendente ? ajustePendente.saldoApurado : null,
+        despesasALancar: ajustePendente ? Math.max(0, saldoCalc - (ajustePendente.saldoApurado || 0)) : 0
+      };
     });
 
     const saldoTotal = distribuicaoCarteiras.reduce((acc: number, c: any) => acc + c.saldo, 0);

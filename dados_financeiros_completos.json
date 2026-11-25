@@ -3872,6 +3872,20 @@
         "lastSignedIn": "2026-08-14T20:04:42.000Z",
         "openId": "duqHJ34k4G7UJ32ZDqLG5B"
       }
+    ],
+    "ajustesSaldo": [
+      {
+        "id": 1795621527876,
+        "carteiraId": 90001,
+        "carteiraNome": "CAIXA FÍSICO",
+        "saldoCalculado": 10890.04,
+        "saldoApurado": 2377,
+        "diferenca": -8513.04,
+        "observacao": "Conferência física: R$ 2.377,00 em dinheiro contado na gaveta.",
+        "data": "2026-11-25",
+        "criadoEm": "2026-11-25T15:45:27.876Z",
+        "status": "pendente"
+      }
     ]
   }
 }
