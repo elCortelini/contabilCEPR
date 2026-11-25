@@ -265,28 +265,29 @@ router.get('/dashboard', (req, res) => {
 
     // Monthly cashflow data
     const entradasPorMes = db.prepare(`
-      SELECT strftime('%Y-%m', data) as mes, SUM(valor) as entradas
+      SELECT strftime('%Y-%m', data) as mes, SUM(valor) as entradas, COUNT(id) as qtdEntradas
       FROM entradas
       GROUP BY strftime('%Y-%m', data)
     `).all() as any[];
 
     const saidasPorMes = db.prepare(`
-      SELECT strftime('%Y-%m', data) as mes, SUM(valor) as saidas
+      SELECT strftime('%Y-%m', data) as mes, SUM(valor) as saidas, COUNT(id) as qtdSaidas
       FROM saidas
       GROUP BY strftime('%Y-%m', data)
     `).all() as any[];
 
-    const mesesMap = new Map<string, { mes: string; entradas: number; saidas: number; liquido: number }>();
+    const mesesMap = new Map<string, { mes: string; entradas: number; saidas: number; liquido: number; qtdEntradas: number; qtdSaidas: number }>();
 
     for (const e of entradasPorMes) {
       if (!e.mes) continue;
-      mesesMap.set(e.mes, { mes: e.mes, entradas: e.entradas || 0, saidas: 0, liquido: e.entradas || 0 });
+      mesesMap.set(e.mes, { mes: e.mes, entradas: e.entradas || 0, saidas: 0, liquido: e.entradas || 0, qtdEntradas: e.qtdEntradas || 0, qtdSaidas: 0 });
     }
 
     for (const s of saidasPorMes) {
       if (!s.mes) continue;
-      const existing = mesesMap.get(s.mes) || { mes: s.mes, entradas: 0, saidas: 0, liquido: 0 };
+      const existing = mesesMap.get(s.mes) || { mes: s.mes, entradas: 0, saidas: 0, liquido: 0, qtdEntradas: 0, qtdSaidas: 0 };
       existing.saidas = s.saidas || 0;
+      existing.qtdSaidas = s.qtdSaidas || 0;
       existing.liquido = existing.entradas - existing.saidas;
       mesesMap.set(s.mes, existing);
     }

@@ -7,7 +7,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Building2,
-  PieChart as PieIcon
+  PieChart as PieIcon,
+  Calendar
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -22,14 +23,24 @@ import { api } from '../services/api';
 import { AlertasBanner } from '../components/AlertasBanner';
 import { formatLocalDate } from '../utils/formatters';
 
+const MESES_NOMES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
 export const Dashboard: React.FC = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedMes, setSelectedMes] = useState<string>('');
 
   useEffect(() => {
     api.getDashboard()
       .then((res) => {
         setData(res);
+        if (res?.fluxoCaixa && res.fluxoCaixa.length > 0) {
+          // Seleciona o mês mais recente por padrão (ex.: 2026-11)
+          setSelectedMes(res.fluxoCaixa[res.fluxoCaixa.length - 1].mes);
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -37,6 +48,17 @@ export const Dashboard: React.FC = () => {
         setLoading(false);
       });
   }, []);
+
+  const formatBrl = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+  };
+
+  const formatMesLabel = (mesStr: string) => {
+    if (!mesStr || mesStr === 'todos') return 'Todo o Histórico (Geral)';
+    const [ano, mes] = mesStr.split('-');
+    const idx = parseInt(mes, 10) - 1;
+    return idx >= 0 && idx < 12 ? `${MESES_NOMES[idx]} de ${ano}` : mesStr;
+  };
 
   if (loading) {
     return (
@@ -49,9 +71,18 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  const formatBrl = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
-  };
+  const mesAtualData = selectedMes && selectedMes !== 'todos'
+    ? data?.fluxoCaixa?.find((m: any) => m.mes === selectedMes)
+    : null;
+
+  const isFiltrado = Boolean(mesAtualData);
+  const saldoExibido = isFiltrado 
+    ? (mesAtualData.liquido ?? (mesAtualData.entradas - mesAtualData.saidas))
+    : (data?.saldoTotal ?? 0);
+  const entradasExibidas = isFiltrado ? mesAtualData.entradas : (data?.totalEntradas ?? 0);
+  const saidasExibidas = isFiltrado ? mesAtualData.saidas : (data?.totalSaidas ?? 0);
+  const qtdEntradasExibidas = isFiltrado ? mesAtualData.qtdEntradas : null;
+  const qtdSaidasExibidas = isFiltrado ? mesAtualData.qtdSaidas : null;
 
   return (
     <div className="p-6 space-y-6">
@@ -60,78 +91,133 @@ export const Dashboard: React.FC = () => {
         <AlertasBanner alertas={data.alertas} onNavigate={(tab: string) => window.dispatchEvent(new CustomEvent('changeTab', { detail: tab }))} />
       )}
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Saldo Total */}
-        <div className="glass-card glass-card-hover p-5 rounded-2xl relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Saldo Total Acumulado</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1 tracking-tight">
-                {formatBrl(data?.saldoTotal)}
-              </h3>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-              <Wallet className="w-6 h-6" />
-            </div>
+      {/* Barra de Filtro de Mês */}
+      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-l-4 border-l-indigo-600 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+            <Calendar className="w-5 h-5" />
           </div>
-          <div className="mt-4 flex items-center gap-2 text-xs text-emerald-700 font-medium">
-            <span className="px-2 py-0.5 rounded bg-emerald-100 border border-emerald-200">Carteiras Ativas</span>
-            <span className="text-slate-500">• Atualizado</span>
+          <div>
+            <h2 className="text-base font-extrabold text-slate-900">Período de Referência</h2>
+            <p className="text-xs text-slate-500">
+              {isFiltrado ? `Visualizando movimentações de ${formatMesLabel(selectedMes)}` : 'Visualizando acumulado geral de todo o histórico'}
+            </p>
           </div>
         </div>
 
-        {/* Card 2: Total Entradas */}
-        <div className="glass-card glass-card-hover p-5 rounded-2xl relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total de Entradas</p>
-              <h3 className="text-2xl font-black text-emerald-600 mt-1 tracking-tight">
-                {formatBrl(data?.totalEntradas)}
-              </h3>
+        <div className="flex items-center gap-3">
+          <label htmlFor="selectMesDashboard" className="text-xs font-bold text-slate-700 whitespace-nowrap">
+            Escolher Mês:
+          </label>
+          <select
+            id="selectMesDashboard"
+            value={selectedMes}
+            onChange={(e) => setSelectedMes(e.target.value)}
+            className="px-4 py-2.5 rounded-xl bg-white border border-slate-300 hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 font-bold text-xs shadow-sm transition cursor-pointer min-w-[210px]"
+          >
+            <option value="todos">Todo o Histórico (Geral)</option>
+            {data?.fluxoCaixa?.slice().reverse().map((m: any) => (
+              <option key={m.mes} value={m.mes}>
+                {formatMesLabel(m.mes)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* KPI Cards Grid (3 Cards: Saldo do Mês, Entradas do Mês, Saídas do Mês) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Card 1: Saldo Acumulado do Mês */}
+        <div className="glass-card glass-card-hover p-5 rounded-2xl relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Saldo Acumulado do Mês
+                </p>
+                <h3 className={`text-2xl font-black mt-1 tracking-tight ${saldoExibido >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {formatBrl(saldoExibido)}
+                </h3>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                <Wallet className="w-6 h-6" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-              <TrendingUp className="w-6 h-6" />
-            </div>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              {formatMesLabel(selectedMes)}
+            </p>
           </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="font-semibold text-slate-800">99 lançamentos</span> históricos
+          <div className="mt-4 flex items-center justify-between text-xs pt-3 border-t border-slate-100">
+            <span className={`px-2 py-0.5 rounded font-bold ${saldoExibido >= 0 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'}`}>
+              {saldoExibido >= 0 ? 'Superávit no período' : 'Déficit no período'}
+            </span>
+            <span className="text-[11px] text-slate-500 font-medium" title="Patrimônio Total Acumulado em todas as contas">
+              Total Geral: <strong className="text-slate-700">{formatBrl(data?.saldoTotal)}</strong>
+            </span>
           </div>
         </div>
 
-        {/* Card 3: Total Saídas */}
-        <div className="glass-card glass-card-hover p-5 rounded-2xl relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total de Saídas</p>
-              <h3 className="text-2xl font-black text-rose-600 mt-1 tracking-tight">
-                {formatBrl(data?.totalSaidas)}
-              </h3>
+        {/* Card 2: Total de Entradas do Mês */}
+        <div className="glass-card glass-card-hover p-5 rounded-2xl relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Total de Entradas do Mês
+                </p>
+                <h3 className="text-2xl font-black text-emerald-600 mt-1 tracking-tight">
+                  {formatBrl(entradasExibidas)}
+                </h3>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                <TrendingUp className="w-6 h-6" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
-              <TrendingDown className="w-6 h-6" />
-            </div>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              Receitas em {formatMesLabel(selectedMes)}
+            </p>
           </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="font-semibold text-slate-800">55 despesas</span> registradas
+          <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-500 pt-3 border-t border-slate-100">
+            {qtdEntradasExibidas !== null ? (
+              <>
+                <span className="font-bold text-slate-800">{qtdEntradasExibidas}</span>
+                <span>lançamento{qtdEntradasExibidas === 1 ? '' : 's'} no mês</span>
+              </>
+            ) : (
+              <span className="font-semibold text-slate-700">Total de receitas acumuladas</span>
+            )}
           </div>
         </div>
 
-        {/* Card 4: Pendente Fornecedores */}
-        <div className="glass-card glass-card-hover p-5 rounded-2xl relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pendente a Fornecedores</p>
-              <h3 className="text-2xl font-black text-amber-600 mt-1 tracking-tight">
-                {formatBrl(data?.pendenteFornecedores)}
-              </h3>
+        {/* Card 3: Total de Saídas do Mês */}
+        <div className="glass-card glass-card-hover p-5 rounded-2xl relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Total de Saídas do Mês
+                </p>
+                <h3 className="text-2xl font-black text-rose-600 mt-1 tracking-tight">
+                  {formatBrl(saidasExibidas)}
+                </h3>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
+                <TrendingDown className="w-6 h-6" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
-              <AlertCircle className="w-6 h-6" />
-            </div>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              Despesas em {formatMesLabel(selectedMes)}
+            </p>
           </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="font-semibold text-slate-800">Saldo a pagar</span> em aberto
+          <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-500 pt-3 border-t border-slate-100">
+            {qtdSaidasExibidas !== null ? (
+              <>
+                <span className="font-bold text-slate-800">{qtdSaidasExibidas}</span>
+                <span>despesa{qtdSaidasExibidas === 1 ? '' : 's'} no mês</span>
+              </>
+            ) : (
+              <span className="font-semibold text-slate-700">Total de despesas acumuladas</span>
+            )}
           </div>
         </div>
       </div>

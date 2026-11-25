@@ -83,12 +83,13 @@ export const api = {
       const totalSaidas = saidas.reduce((acc: number, s: any) => acc + (parseFloat(s.valor) || 0), 0);
       const pendenteFornecedores = fornecedores.reduce((acc: number, f: any) => acc + (parseFloat(f.saldoPendente) || 0), 0);
 
-      const mesesMap = new Map<string, { mes: string; entradas: number; saidas: number; liquido: number }>();
+      const mesesMap = new Map<string, { mes: string; entradas: number; saidas: number; liquido: number; qtdEntradas: number; qtdSaidas: number }>();
       entradas.forEach((e: any) => {
         const mes = e.data ? e.data.substring(0, 7) : '';
         if (!mes) return;
-        const curr = mesesMap.get(mes) || { mes, entradas: 0, saidas: 0, liquido: 0 };
+        const curr = mesesMap.get(mes) || { mes, entradas: 0, saidas: 0, liquido: 0, qtdEntradas: 0, qtdSaidas: 0 };
         curr.entradas += parseFloat(e.valor) || 0;
+        curr.qtdEntradas = (curr.qtdEntradas || 0) + 1;
         curr.liquido = curr.entradas - curr.saidas;
         mesesMap.set(mes, curr);
       });
@@ -96,17 +97,34 @@ export const api = {
       saidas.forEach((s: any) => {
         const mes = s.data ? s.data.substring(0, 7) : '';
         if (!mes) return;
-        const curr = mesesMap.get(mes) || { mes, entradas: 0, saidas: 0, liquido: 0 };
+        const curr = mesesMap.get(mes) || { mes, entradas: 0, saidas: 0, liquido: 0, qtdEntradas: 0, qtdSaidas: 0 };
         curr.saidas += parseFloat(s.valor) || 0;
+        curr.qtdSaidas = (curr.qtdSaidas || 0) + 1;
         curr.liquido = curr.entradas - curr.saidas;
         mesesMap.set(mes, curr);
       });
 
       const fluxoCaixa = Array.from(mesesMap.values()).sort((a, b) => a.mes.localeCompare(b.mes));
 
-      const carteirasMap = new Map(carteiras.map((c: any) => [Number(c.id), c.nome]));
-      const eRecentes = entradas.map((e: any) => ({ ...e, tipo: 'entrada', forma: e.formaRecebimento, turno: e.turno || 'Matutino', carteiraNome: carteirasMap.get(Number(e.carteiraId)) || 'Carteira' }));
-      const sRecentes = saidas.map((s: any) => ({ ...s, tipo: 'saida', forma: s.formaPagamento, turno: 'Geral', carteiraNome: carteirasMap.get(Number(s.carteiraId)) || 'Carteira' }));
+      const carteirasMap = new Map();
+      carteiras.forEach((c: any) => {
+        carteirasMap.set(Number(c.id), c.nome);
+        carteirasMap.set(String(c.id), c.nome);
+      });
+      const eRecentes = entradas.map((e: any) => ({
+        ...e,
+        tipo: 'entrada',
+        forma: e.formaRecebimento,
+        turno: e.turno || 'Matutino',
+        carteiraNome: carteirasMap.get(Number(e.carteiraId)) || carteirasMap.get(String(e.carteiraId)) || 'CAIXA FÍSICO'
+      }));
+      const sRecentes = saidas.map((s: any) => ({
+        ...s,
+        tipo: 'saida',
+        forma: s.formaPagamento,
+        turno: 'Geral',
+        carteiraNome: carteirasMap.get(Number(s.carteiraId)) || carteirasMap.get(String(s.carteiraId)) || 'CAIXA FÍSICO'
+      }));
       const ultimasMovimentacoes = [...eRecentes, ...sRecentes]
         .sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime())
         .slice(0, 10);
@@ -147,12 +165,13 @@ export const api = {
     const totalSaidas = saidas.reduce((acc: number, s: any) => acc + (parseFloat(s.valor) || 0), 0);
     const pendenteFornecedores = fornecedores.reduce((acc: number, f: any) => acc + (parseFloat(f.saldoPendente) || 0), 0);
 
-    const mesesMap = new Map<string, { mes: string; entradas: number; saidas: number; liquido: number }>();
+    const mesesMap = new Map<string, { mes: string; entradas: number; saidas: number; liquido: number; qtdEntradas: number; qtdSaidas: number }>();
     entradas.forEach((e: any) => {
       const mes = e.data ? e.data.substring(0, 7) : '';
       if (!mes) return;
-      const curr = mesesMap.get(mes) || { mes, entradas: 0, saidas: 0, liquido: 0 };
+      const curr = mesesMap.get(mes) || { mes, entradas: 0, saidas: 0, liquido: 0, qtdEntradas: 0, qtdSaidas: 0 };
       curr.entradas += parseFloat(e.valor) || 0;
+      curr.qtdEntradas = (curr.qtdEntradas || 0) + 1;
       curr.liquido = curr.entradas - curr.saidas;
       mesesMap.set(mes, curr);
     });
@@ -160,17 +179,34 @@ export const api = {
     saidas.forEach((s: any) => {
       const mes = s.data ? s.data.substring(0, 7) : '';
       if (!mes) return;
-      const curr = mesesMap.get(mes) || { mes, entradas: 0, saidas: 0, liquido: 0 };
+      const curr = mesesMap.get(mes) || { mes, entradas: 0, saidas: 0, liquido: 0, qtdEntradas: 0, qtdSaidas: 0 };
       curr.saidas += parseFloat(s.valor) || 0;
+      curr.qtdSaidas = (curr.qtdSaidas || 0) + 1;
       curr.liquido = curr.entradas - curr.saidas;
       mesesMap.set(mes, curr);
     });
 
     const fluxoCaixa = Array.from(mesesMap.values()).sort((a, b) => a.mes.localeCompare(b.mes));
 
-    const carteirasMap = new Map(carteiras.map((c: any) => [c.id, c.nome]));
-    const eRecentes = entradas.map((e: any) => ({ ...e, tipo: 'entrada', forma: e.formaRecebimento, turno: e.turno || 'Matutino', carteiraNome: carteirasMap.get(e.carteiraId) || 'Carteira' }));
-    const sRecentes = saidas.map((s: any) => ({ ...s, tipo: 'saida', forma: s.formaPagamento, turno: 'Geral', carteiraNome: carteirasMap.get(s.carteiraId) || 'Carteira' }));
+    const carteirasMap = new Map();
+    carteiras.forEach((c: any) => {
+      carteirasMap.set(Number(c.id), c.nome);
+      carteirasMap.set(String(c.id), c.nome);
+    });
+    const eRecentes = entradas.map((e: any) => ({
+      ...e,
+      tipo: 'entrada',
+      forma: e.formaRecebimento,
+      turno: e.turno || 'Matutino',
+      carteiraNome: carteirasMap.get(Number(e.carteiraId)) || carteirasMap.get(String(e.carteiraId)) || 'CAIXA FÍSICO'
+    }));
+    const sRecentes = saidas.map((s: any) => ({
+      ...s,
+      tipo: 'saida',
+      forma: s.formaPagamento,
+      turno: 'Geral',
+      carteiraNome: carteirasMap.get(Number(s.carteiraId)) || carteirasMap.get(String(s.carteiraId)) || 'CAIXA FÍSICO'
+    }));
     const ultimasMovimentacoes = [...eRecentes, ...sRecentes]
       .sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime())
       .slice(0, 10);
@@ -591,15 +627,26 @@ export const api = {
       const categorias = (await firebaseApi.getCollection('categorias')) as any[];
       const entradas = (await firebaseApi.getCollection('entradas')) as any[];
 
-      const carteirasMap = new Map(carteiras.map((c: any) => [Number(c.id), c.nome]));
-      const categoriasMap = new Map(categorias.map((cat: any) => [Number(cat.id), cat]));
+      const carteirasMap = new Map();
+      carteiras.forEach((c: any) => {
+        carteirasMap.set(Number(c.id), c.nome);
+        carteirasMap.set(String(c.id), c.nome);
+      });
+      const categoriasMap = new Map();
+      categorias.forEach((cat: any) => {
+        categoriasMap.set(Number(cat.id), cat);
+        categoriasMap.set(String(cat.id), cat);
+      });
 
       return entradas.map((e: any) => {
-        const cat = categoriasMap.get(Number(e.categoriaId));
+        let cat = categoriasMap.get(Number(e.categoriaId)) || categoriasMap.get(String(e.categoriaId));
+        if (!cat && (e.descricao || '').toLowerCase().includes('cantina')) {
+          cat = { nome: 'Vendas Cantina', cor: '#10b981' };
+        }
         return {
           ...e,
           turno: e.turno || 'Matutino',
-          carteiraNome: carteirasMap.get(Number(e.carteiraId)) || 'Carteira',
+          carteiraNome: carteirasMap.get(Number(e.carteiraId)) || carteirasMap.get(String(e.carteiraId)) || 'CAIXA FÍSICO',
           categoriaNome: cat?.nome,
           categoriaCor: cat?.cor
         };
@@ -610,15 +657,26 @@ export const api = {
       const res = await fetch('/api/entradas');
       if (res.ok) return res.json();
     }
-    const carteirasMap = new Map((getStorage('carteiras', []) as any[]).map((c: any) => [c.id, c.nome]));
-    const categoriasMap = new Map((getStorage('categorias', []) as any[]).map((cat: any) => [cat.id, cat]));
+    const carteirasMap = new Map();
+    (getStorage('carteiras', []) as any[]).forEach((c: any) => {
+      carteirasMap.set(Number(c.id), c.nome);
+      carteirasMap.set(String(c.id), c.nome);
+    });
+    const categoriasMap = new Map();
+    (getStorage('categorias', []) as any[]).forEach((cat: any) => {
+      categoriasMap.set(Number(cat.id), cat);
+      categoriasMap.set(String(cat.id), cat);
+    });
     const entradas = getStorage('entradas', []);
     return entradas.map((e: any) => {
-      const cat = categoriasMap.get(e.categoriaId);
+      let cat = categoriasMap.get(Number(e.categoriaId)) || categoriasMap.get(String(e.categoriaId));
+      if (!cat && (e.descricao || '').toLowerCase().includes('cantina')) {
+        cat = { nome: 'Vendas Cantina', cor: '#10b981' };
+      }
       return {
         ...e,
         turno: e.turno || 'Matutino',
-        carteiraNome: carteirasMap.get(e.carteiraId) || 'Carteira',
+        carteiraNome: carteirasMap.get(Number(e.carteiraId)) || carteirasMap.get(String(e.carteiraId)) || 'CAIXA FÍSICO',
         categoriaNome: cat?.nome,
         categoriaCor: cat?.cor
       };
@@ -699,12 +757,25 @@ export const api = {
       const categorias = (await firebaseApi.getCollection('categorias')) as any[];
       const saidas = (await firebaseApi.getCollection('saidas')) as any[];
 
-      const carteirasMap = new Map(carteiras.map((c: any) => [Number(c.id), c.nome]));
-      const categoriasMap = new Map(categorias.map((cat: any) => [Number(cat.id), cat]));
+      const carteirasMap = new Map();
+      carteiras.forEach((c: any) => {
+        carteirasMap.set(Number(c.id), c.nome);
+        carteirasMap.set(String(c.id), c.nome);
+      });
+      const categoriasMap = new Map();
+      categorias.forEach((cat: any) => {
+        categoriasMap.set(Number(cat.id), cat);
+        categoriasMap.set(String(cat.id), cat);
+      });
 
       return saidas.map((s: any) => {
-        const cat = categoriasMap.get(Number(s.categoriaId));
-        return { ...s, carteiraNome: carteirasMap.get(Number(s.carteiraId)) || 'Carteira', categoriaNome: cat?.nome, categoriaCor: cat?.cor };
+        const cat = categoriasMap.get(Number(s.categoriaId)) || categoriasMap.get(String(s.categoriaId));
+        return {
+          ...s,
+          carteiraNome: carteirasMap.get(Number(s.carteiraId)) || carteirasMap.get(String(s.carteiraId)) || 'CAIXA FÍSICO',
+          categoriaNome: cat?.nome,
+          categoriaCor: cat?.cor
+        };
       });
     }
 
@@ -712,12 +783,25 @@ export const api = {
       const res = await fetch('/api/saidas');
       if (res.ok) return res.json();
     }
-    const carteirasMap = new Map((getStorage('carteiras', []) as any[]).map((c: any) => [c.id, c.nome]));
-    const categoriasMap = new Map((getStorage('categorias', []) as any[]).map((cat: any) => [cat.id, cat]));
+    const carteirasMap = new Map();
+    (getStorage('carteiras', []) as any[]).forEach((c: any) => {
+      carteirasMap.set(Number(c.id), c.nome);
+      carteirasMap.set(String(c.id), c.nome);
+    });
+    const categoriasMap = new Map();
+    (getStorage('categorias', []) as any[]).forEach((cat: any) => {
+      categoriasMap.set(Number(cat.id), cat);
+      categoriasMap.set(String(cat.id), cat);
+    });
     const saidas = getStorage('saidas', []);
     return saidas.map((s: any) => {
-      const cat = categoriasMap.get(s.categoriaId);
-      return { ...s, carteiraNome: carteirasMap.get(s.carteiraId) || 'Carteira', categoriaNome: cat?.nome, categoriaCor: cat?.cor };
+      const cat = categoriasMap.get(Number(s.categoriaId)) || categoriasMap.get(String(s.categoriaId));
+      return {
+        ...s,
+        carteiraNome: carteirasMap.get(Number(s.carteiraId)) || carteirasMap.get(String(s.carteiraId)) || 'CAIXA FÍSICO',
+        categoriaNome: cat?.nome,
+        categoriaCor: cat?.cor
+      };
     });
   },
 

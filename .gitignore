@@ -6,4 +6,5 @@ temp_zip/
 *.log
 *.sqlite-shm
 *.sqlite-wal
+*.bak*
 contabilCEPR
