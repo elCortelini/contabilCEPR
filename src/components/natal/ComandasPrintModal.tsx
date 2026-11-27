@@ -208,6 +208,15 @@ export const ComandasPrintModal: React.FC<ComandasPrintModalProps> = ({
                         </td>
                         <td className="p-2.5 font-bold text-slate-900 text-right whitespace-nowrap">
                           {formatarMoeda(totalNum)}
+                          {(c.formaPagamento || '').toLowerCase() === 'dinheiro' ? (
+                            <span className="text-[10px] font-bold text-emerald-800 block">
+                              Dinheiro • Valor já recebido
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-slate-600 block">
+                              PIX • {c.status === 'pago' || c.status === 'entregue' ? 'Pago' : 'Pendente'}
+                            </span>
+                          )}
                         </td>
                         <td className="p-2.5 border-l border-slate-200">
                           <div className="h-4 border-b border-dotted border-slate-400 w-full mt-2"></div>

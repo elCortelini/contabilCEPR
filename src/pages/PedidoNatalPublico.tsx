@@ -101,6 +101,7 @@ export const PedidoNatalPublico: React.FC = () => {
     codigoPedido: string;
     total: number;
     status: string;
+    formaPagamento?: string;
     pixPayload: string;
   } | null>(null);
 
@@ -130,6 +131,7 @@ export const PedidoNatalPublico: React.FC = () => {
                   codigoPedido: atualizado.codigoPedido || dados.codigoPedido,
                   total: atualizado.total,
                   status: atualizado.status,
+                  formaPagamento: atualizado.formaPagamento || dados.formaPagamento || 'pix',
                   pixPayload: atualizado.pixPayload || dados.pixPayload || ''
                 });
                 if (atualizado.status === 'pendente_conferencia' || atualizado.status === 'pago' || atualizado.status === 'entregue') {
@@ -295,6 +297,7 @@ export const PedidoNatalPublico: React.FC = () => {
         codigoPedido,
         total: totalCarrinho,
         status: 'aguardando_comprovante',
+        formaPagamento: 'pix',
         pixPayload
       };
 
@@ -432,6 +435,8 @@ export const PedidoNatalPublico: React.FC = () => {
   // Mensagem completa da comanda para envio no WhatsApp do responsável
   const textoComandaWhatsApp = useMemo(() => {
     if (!pedidoCriado) return '';
+    const isDinheiro = (pedidoCriado.formaPagamento || 'pix').toLowerCase() === 'dinheiro';
+    const isPago = pedidoCriado.status === 'pago' || pedidoCriado.status === 'entregue';
     return `🎄 *CENTRO EDUCACIONAL PEDRO RIZZI* 🎄\n` +
       `✨ *NATAL LUZ 2026 - SEU TICKET / COMANDA* ✨\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -442,10 +447,14 @@ export const PedidoNatalPublico: React.FC = () => {
       `📞 *Telefone:* ${telefone}\n\n` +
       `📦 *ITENS COMPRADOS:*\n${linhasItensTexto || '• Itens confirmados no sistema'}\n\n` +
       `💰 *VALOR TOTAL: R$ ${pedidoCriado.total.toFixed(2).replace('.', ',')}*\n` +
-      `💳 *Forma de Pagamento:* PIX\n` +
+      `💳 *Forma de Pagamento:* ${isDinheiro ? 'DINHEIRO (Valor já recebido)' : 'PIX'}\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `⚠️ *AVISO SOBRE A VALIDAÇÃO E ENTREGA:*\n` +
-      `📌 *A compra será confirmada após a conferência do comprovante pela tesouraria da APP.*\n` +
+      (isDinheiro
+        ? `✅ *O valor em dinheiro já foi recebido e confirmado pela administração da escola!*\n`
+        : isPago
+        ? `✅ *Pagamento confirmado pela tesouraria da APP!*\n`
+        : `📌 *A compra será confirmada após a conferência do comprovante pela tesouraria da APP.*\n`) +
       `🎟️ *Os tickets comprados serão entregues no dia da festa, apresentando o nome do aluno e turma do mesmo.*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `_Guarde esta mensagem como comprovante da sua comanda!_ ❤️✨`;
@@ -993,7 +1002,11 @@ export const PedidoNatalPublico: React.FC = () => {
               </div>
 
               <span className="inline-block px-3 py-1 bg-emerald-400/20 text-emerald-300 rounded-full text-xs font-bold uppercase tracking-wider">
-                Comprovante Enviado com Sucesso
+                {(pedidoCriado.formaPagamento || '').toLowerCase() === 'dinheiro'
+                  ? 'Pagamento em Dinheiro Confirmado'
+                  : pedidoCriado.status === 'pago' || pedidoCriado.status === 'entregue'
+                  ? 'Pagamento Confirmado'
+                  : 'Comprovante Enviado com Sucesso'}
               </span>
 
               <h2 className="text-3xl font-black text-white tracking-tight">
@@ -1001,7 +1014,15 @@ export const PedidoNatalPublico: React.FC = () => {
               </h2>
 
               <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
-                Comprovante recebido para <strong className="text-white">{nomeAlunoFinal}</strong> (Turma <strong className="text-amber-300">{turmaSelecionada}</strong>).
+                {(pedidoCriado.formaPagamento || '').toLowerCase() === 'dinheiro' ? (
+                  <>
+                    Valor já recebido em dinheiro para <strong className="text-white">{nomeAlunoFinal}</strong> (Turma <strong className="text-amber-300">{turmaSelecionada}</strong>).
+                  </>
+                ) : (
+                  <>
+                    Comprovante recebido para <strong className="text-white">{nomeAlunoFinal}</strong> (Turma <strong className="text-amber-300">{turmaSelecionada}</strong>).
+                  </>
+                )}
               </p>
 
               {/* Itens Comprados */}
@@ -1033,9 +1054,19 @@ export const PedidoNatalPublico: React.FC = () => {
                   <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                   <div className="space-y-1">
                     <p className="font-bold text-amber-300 text-xs">Aviso Importante ao Responsável:</p>
-                    <p className="text-slate-200 text-xs leading-relaxed">
-                      📌 <strong>A compra será confirmada após a conferência do comprovante pela tesouraria da APP.</strong>
-                    </p>
+                    {(pedidoCriado.formaPagamento || '').toLowerCase() === 'dinheiro' ? (
+                      <p className="text-emerald-300 text-xs leading-relaxed">
+                        ✅ <strong>O valor em dinheiro já foi recebido e confirmado pela administração da escola!</strong>
+                      </p>
+                    ) : pedidoCriado.status === 'pago' || pedidoCriado.status === 'entregue' ? (
+                      <p className="text-emerald-300 text-xs leading-relaxed">
+                        ✅ <strong>Pagamento confirmado pela tesouraria da APP!</strong>
+                      </p>
+                    ) : (
+                      <p className="text-slate-200 text-xs leading-relaxed">
+                        📌 <strong>A compra será confirmada após a conferência do comprovante pela tesouraria da APP.</strong>
+                      </p>
+                    )}
                     <p className="text-slate-300 text-xs leading-relaxed">
                       🎟️ <strong>Os tickets comprados serão entregues no dia da festa, apresentando o nome do aluno e turma do mesmo ({nomeAlunoFinal} - Turma {turmaSelecionada}).</strong>
                     </p>

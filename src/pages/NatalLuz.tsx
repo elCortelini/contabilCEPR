@@ -38,7 +38,9 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
-  Maximize2
+  Maximize2,
+  Pencil,
+  X
 } from 'lucide-react';
 import { api } from '../services/api';
 import { 
@@ -98,6 +100,31 @@ export const NatalLuz: React.FC = () => {
   const [mostrarRecusaField, setMostrarRecusaField] = useState(false);
   const [zoomComprovante, setZoomComprovante] = useState(1);
   const [rotacaoComprovante, setRotacaoComprovante] = useState(0);
+
+  // Modal de Edição de Comanda
+  const [comandaEditando, setComandaEditando] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({
+    estudante: '',
+    turma: '',
+    professor: '',
+    responsavel: '',
+    telefone: '',
+    formaPagamento: 'pix' as 'pix' | 'dinheiro',
+    status: 'aguardando_comprovante',
+    ticketEntregue: false
+  });
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+
+  useEffect(() => {
+    if (!comandaEditando || salvandoEdicao) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setComandaEditando(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [comandaEditando, salvandoEdicao]);
 
   // Filtros da Aba Arrecadação
   const [filtroFormaArrecadacao, setFiltroFormaArrecadacao] = useState<'todas' | 'pix' | 'dinheiro'>('todas');
@@ -172,7 +199,7 @@ export const NatalLuz: React.FC = () => {
   }, []);
 
   // Máscara de telefone simples
-  const handleTelefoneChange = (val: string) => {
+  const formatarTelefone = (val: string) => {
     const raw = val.replace(/\D/g, '').substring(0, 11);
     let formatted = raw;
     if (raw.length > 2 && raw.length <= 7) {
@@ -180,7 +207,11 @@ export const NatalLuz: React.FC = () => {
     } else if (raw.length > 7) {
       formatted = `(${raw.substring(0, 2)}) ${raw.substring(2, 7)}-${raw.substring(7)}`;
     }
-    setTelefone(formatted);
+    return formatted;
+  };
+
+  const handleTelefoneChange = (val: string) => {
+    setTelefone(formatarTelefone(val));
   };
 
   // Manipulação de quantidades
@@ -244,7 +275,8 @@ export const NatalLuz: React.FC = () => {
   const gerarTextoWhatsApp = (cmdOuId: any, pixPayloadStr?: string) => {
     const isObj = typeof cmdOuId === 'object' && cmdOuId !== null;
     const idVal = isObj ? (cmdOuId.codigoPedido || cmdOuId.id) : cmdOuId;
-    const dataHora = isObj && cmdOuId.createdAt ? new Date(cmdOuId.createdAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
+    const dataCriacao = isObj ? (cmdOuId.criadaEm || cmdOuId.createdAt) : null;
+    const dataHora = dataCriacao ? new Date(dataCriacao).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
 
     const nomeEstudante = (isObj ? (cmdOuId.estudante || '') : estudante).trim();
     const nomeTurma = (isObj ? (cmdOuId.turma || '') : turma).trim();
@@ -283,10 +315,12 @@ export const NatalLuz: React.FC = () => {
     if (numTel) msg += `📞 *WhatsApp:* ${numTel}\n\n`;
     msg += `📦 *ITENS DA COMANDA:*\n${linhasItens}\n\n`;
     msg += `💰 *VALOR TOTAL: R$ ${totalVal.toFixed(2).replace('.', ',')}*\n`;
-    msg += `💳 *Forma de Pagamento:* ${forma === 'pix' ? 'PIX' : 'DINHEIRO'}\n`;
+    msg += `💳 *Forma de Pagamento:* ${forma === 'pix' ? 'PIX' : 'DINHEIRO (Valor já recebido)'}\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     msg += `⚠️ *COMUNICADO IMPORTANTE AO RESPONSÁVEL:*\n`;
-    if (isPago || forma === 'dinheiro') {
+    if (forma === 'dinheiro') {
+      msg += `✅ *CONFIRMAÇÃO DE PAGAMENTO: O valor de R$ ${totalVal.toFixed(2).replace('.', ',')} em dinheiro já foi recebido e confirmado!*\n`;
+    } else if (isPago) {
       msg += `✅ *Pagamento do valor recebido e confirmado com sucesso!*\n`;
     } else {
       msg += `📌 *A compra será confirmada após a conferência do comprovante pela tesouraria da APP.*\n`;
@@ -306,7 +340,7 @@ export const NatalLuz: React.FC = () => {
     } else {
       msg += `💵 *PAGAMENTO EM DINHEIRO:*\n`;
       if (isPago || forma === 'dinheiro') {
-        msg += `✅ *Valor de R$ ${totalVal.toFixed(2).replace('.', ',')} recebido na administração da escola.*\n`;
+        msg += `✅ *Valor de R$ ${totalVal.toFixed(2).replace('.', ',')} já foi recebido na administração da escola — pagamento quitado!*\n`;
         msg += `🎟️ A retirada dos tickets dos itens ocorrerá no dia da festa!\n\n`;
       } else {
         msg += `Por favor, realize o pagamento diretamente na administração da escola ou com a comissão organizadora.\n\n`;
@@ -472,7 +506,18 @@ export const NatalLuz: React.FC = () => {
         )
       );
       setModalSucesso((prev: any) =>
-        prev ? { ...prev, status: 'pago', ticketEntregue: marcarEntregue } : null
+        prev
+          ? {
+              ...prev,
+              status: 'pago',
+              ticketEntregue: marcarEntregue,
+              textoWhats: gerarTextoWhatsApp({
+                ...prev,
+                status: 'pago',
+                ticketEntregue: marcarEntregue
+              })
+            }
+          : null
       );
       setConfirmandoPixModal(false);
       api.getNatalResumo().then((res) => setResumoCozinha(res));
@@ -508,6 +553,109 @@ export const NatalLuz: React.FC = () => {
       api.getNatalResumo().then((res) => setResumoCozinha(res));
     } catch (e) {
       console.error('Erro ao excluir comanda:', e);
+    }
+  };
+
+  // Abrir modal de edição de comanda
+  const handleAbrirEdicaoComanda = (cmd: any) => {
+    const formaAtual = (cmd.formaPagamento || 'pix').toLowerCase() === 'dinheiro' ? 'dinheiro' : 'pix';
+    const statusAtual = cmd.status || (cmd.ticketEntregue ? 'entregue' : 'pago');
+    setEditForm({
+      estudante: cmd.estudante || '',
+      turma: cmd.turma || '',
+      professor: cmd.professor || '',
+      responsavel: cmd.responsavel || '',
+      telefone: cmd.telefone || '',
+      formaPagamento: formaAtual,
+      status: statusAtual,
+      ticketEntregue: Boolean(cmd.ticketEntregue)
+    });
+    setComandaEditando(cmd);
+  };
+
+  // Alterar forma de pagamento dentro do modal de edição
+  const handleAlterarFormaPagamentoEdicao = (novaForma: 'pix' | 'dinheiro') => {
+    setEditForm((prev) => {
+      if (novaForma === 'dinheiro') {
+        return {
+          ...prev,
+          formaPagamento: 'dinheiro',
+          status: prev.status === 'entregue' ? 'entregue' : 'pago'
+        };
+      }
+      const eraDinheiroSemComprovante =
+        (comandaEditando?.formaPagamento || '').toLowerCase() === 'dinheiro' &&
+        !comandaEditando?.comprovante &&
+        prev.status === 'pago';
+      return {
+        ...prev,
+        formaPagamento: 'pix',
+        status: eraDinheiroSemComprovante ? 'aguardando_comprovante' : prev.status
+      };
+    });
+  };
+
+  // Salvar alterações da comanda editada
+  const handleSalvarEdicaoComanda = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!comandaEditando) return;
+    if (!editForm.estudante.trim()) {
+      alert('Por favor, informe o nome do estudante.');
+      return;
+    }
+    if (!editForm.responsavel.trim()) {
+      alert('Por favor, informe o nome do responsável.');
+      return;
+    }
+
+    setSalvandoEdicao(true);
+    try {
+      const totalNum = Number(comandaEditando.total) || 0;
+      let pixPayloadFinal = comandaEditando.pixPayload || '';
+      if (editForm.formaPagamento === 'pix' && !pixPayloadFinal && totalNum > 0) {
+        const codigoRef = comandaEditando.codigoPedido || `NL${String(comandaEditando.id).padStart(4, '0')}`;
+        pixPayloadFinal = generatePixPayload({
+          key: CHAVE_PIX_CEPR,
+          name: NOME_RECEBEDOR_PIX,
+          city: CIDADE_PIX,
+          amount: totalNum,
+          txid: formatCodigoPixTxid(codigoRef)
+        });
+      }
+
+      const ticketFinal = editForm.status === 'entregue' ? true : Boolean(editForm.ticketEntregue);
+      const motivoRecusaFinal =
+        editForm.status === 'pago' || editForm.status === 'entregue'
+          ? null
+          : (comandaEditando.motivoRecusa || null);
+
+      const payload = {
+        estudante: editForm.estudante.trim(),
+        turma: editForm.turma.trim(),
+        professor: editForm.professor.trim(),
+        responsavel: editForm.responsavel.trim(),
+        telefone: editForm.telefone.trim(),
+        formaPagamento: editForm.formaPagamento,
+        status: editForm.status,
+        ticketEntregue: ticketFinal,
+        pixPayload: pixPayloadFinal,
+        motivoRecusa: motivoRecusaFinal
+      };
+
+      await api.updateNatalComanda(comandaEditando.id, payload);
+
+      setComandas((prev) =>
+        prev.map((c) =>
+          String(c.id) === String(comandaEditando.id) ? { ...c, ...payload } : c
+        )
+      );
+      api.getNatalResumo().then((res) => setResumoCozinha(res));
+      setComandaEditando(null);
+    } catch (err: any) {
+      console.error('Erro ao editar comanda:', err);
+      alert('Erro ao salvar alterações da comanda: ' + (err?.message || 'Erro desconhecido'));
+    } finally {
+      setSalvandoEdicao(false);
     }
   };
 
@@ -1520,8 +1668,19 @@ export const NatalLuz: React.FC = () => {
                           )}
 
                           <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                              {cmd.formaPagamento === 'pix' ? '💠 Pix' : '💵 Dinheiro'}
+                            <span
+                              className={`text-[11px] font-bold uppercase tracking-wider ${
+                                (cmd.formaPagamento || '').toLowerCase() === 'dinheiro' &&
+                                (statusAtual === 'pago' || statusAtual === 'entregue')
+                                  ? 'text-emerald-300'
+                                  : 'text-slate-400'
+                              }`}
+                            >
+                              {(cmd.formaPagamento || '').toLowerCase() === 'pix'
+                                ? '💠 Pix'
+                                : statusAtual === 'pago' || statusAtual === 'entregue'
+                                ? '💵 Dinheiro • Valor recebido'
+                                : '💵 Dinheiro'}
                             </span>
                             <span
                               className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border ${
@@ -1593,6 +1752,17 @@ export const NatalLuz: React.FC = () => {
                               <Eye className="w-3.5 h-3.5 text-blue-400" />
                               <span>Ver Comprovante Anexado</span>
                             </button>
+                          ) : (cmd.formaPagamento || '').toLowerCase() === 'dinheiro' &&
+                            (statusAtual === 'pago' || statusAtual === 'entregue') ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/70 border border-emerald-500/40 text-[11px] font-bold text-emerald-300">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Valor já recebido em dinheiro</span>
+                            </span>
+                          ) : statusAtual === 'pago' || statusAtual === 'entregue' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/50 border border-emerald-600/30 text-[11px] font-semibold text-emerald-300">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Pagamento confirmado (sem anexo)</span>
+                            </span>
                           ) : (
                             <span className="text-[11px] text-slate-500 italic">
                               Sem comprovante anexado
@@ -1625,6 +1795,17 @@ export const NatalLuz: React.FC = () => {
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>{cmd.ticketEntregue || statusAtual === 'entregue' ? 'Desmarcar Entrega' : 'Marcar Entregue'}</span>
+                          </button>
+
+                          {/* Editar Comanda (Forma de pagamento, status, dados) */}
+                          <button
+                            type="button"
+                            onClick={() => handleAbrirEdicaoComanda(cmd)}
+                            className="px-3 py-1.5 rounded-xl bg-amber-950/60 hover:bg-amber-900/70 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                            title="Editar comanda / alterar forma de pagamento"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Editar</span>
                           </button>
 
                           {/* Imprimir Comanda Individual */}
@@ -2044,15 +2225,19 @@ export const NatalLuz: React.FC = () => {
                         <td className="py-2 px-2 text-slate-300">{c.turma || '-'}</td>
                         <td className="py-2 px-2 text-slate-400">{c.responsavel}</td>
                         <td className="py-2 px-2 text-center uppercase font-bold text-[10px]">
-                          <span
-                            className={`px-2 py-0.5 rounded-full ${
+                          <button
+                            type="button"
+                            onClick={() => handleAbrirEdicaoComanda(c)}
+                            title="Clique para editar forma de pagamento"
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full cursor-pointer transition hover:brightness-125 ${
                               c.formaPagamento === 'pix'
                                 ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
                                 : 'bg-amber-950 text-amber-300 border border-amber-800'
                             }`}
                           >
-                            {c.formaPagamento}
-                          </span>
+                            <span>{c.formaPagamento}</span>
+                            <Pencil className="w-2.5 h-2.5 opacity-80" />
+                          </button>
                         </td>
                         <td className="py-2 px-2 text-right font-bold text-amber-400 font-mono">
                           R$ {(parseFloat(c.total) || 0).toFixed(2).replace('.', ',')}
@@ -2292,6 +2477,231 @@ export const NatalLuz: React.FC = () => {
       )}
 
       {/* ============================================================== */}
+      {/* MODAL DE EDIÇÃO DE COMANDA (ALTERAR PAGAMENTO E DADOS)         */}
+      {/* ============================================================== */}
+      {comandaEditando && (
+        <div
+          onClick={() => {
+            if (!salvandoEdicao) setComandaEditando(null);
+          }}
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-editar-comanda-titulo"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 border border-amber-500/40 w-full max-w-xl rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 my-6 text-slate-100 animate-in fade-in zoom-in-95 duration-150"
+          >
+            {/* Cabeçalho */}
+            <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3.5">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                  Editar Comanda
+                </span>
+                <h2
+                  id="modal-editar-comanda-titulo"
+                  className="text-xl font-black text-white flex flex-wrap items-center gap-2 mt-0.5"
+                >
+                  <span>{comandaEditando.codigoPedido || `#${String(comandaEditando.id).padStart(4, '0')}`}</span>
+                  <span className="text-xs font-mono bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-lg border border-emerald-500/40">
+                    Total: R$ {(Number(comandaEditando.total) || 0).toFixed(2).replace('.', ',')}
+                  </span>
+                </h2>
+              </div>
+              <button
+                type="button"
+                disabled={salvandoEdicao}
+                onClick={() => setComandaEditando(null)}
+                aria-label="Fechar modal de edição"
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSalvarEdicaoComanda} className="space-y-4">
+              {/* Destaque Principal: Forma de Pagamento */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Forma de Pagamento
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleAlterarFormaPagamentoEdicao('pix')}
+                    className={`min-h-[64px] p-3 rounded-2xl border text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                      editForm.formaPagamento === 'pix'
+                        ? 'bg-gradient-to-b from-emerald-900/70 to-emerald-950 border-emerald-400 text-white shadow-lg ring-1 ring-emerald-400/50'
+                        : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-500'
+                    }`}
+                  >
+                    <span className="text-lg">💠</span>
+                    <span className="font-black text-sm">PIX</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAlterarFormaPagamentoEdicao('dinheiro')}
+                    className={`min-h-[64px] p-3 rounded-2xl border text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                      editForm.formaPagamento === 'dinheiro'
+                        ? 'bg-gradient-to-b from-amber-900/70 to-amber-950 border-amber-400 text-white shadow-lg ring-1 ring-amber-400/50'
+                        : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-500'
+                    }`}
+                  >
+                    <span className="text-lg">💵</span>
+                    <span className="font-black text-sm">DINHEIRO</span>
+                  </button>
+                </div>
+
+                {editForm.formaPagamento === 'dinheiro' ? (
+                  <div className="bg-emerald-950/50 border border-emerald-500/50 rounded-xl p-3 text-xs text-emerald-200 flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Pagamento em Dinheiro:</strong> o valor já será considerado recebido (<strong>Pago</strong>) na confirmação da comanda.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="bg-slate-950/70 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-300 flex items-start gap-2">
+                    <QrCode className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>
+                      O código Pix Copia e Cola será preservado/gerado automaticamente para esta comanda. Você pode ajustar o status abaixo se o Pix já foi pago.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Status do Pagamento e Ticket */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Status do Pagamento
+                  </label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, status: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="pago">🟢 Pago (Valor Recebido)</option>
+                    <option value="entregue">⚪ Entregue ao Aluno</option>
+                    <option value="pendente_conferencia">🔵 Pendente Conferência</option>
+                    <option value="aguardando_comprovante">🟡 Aguardando Comprovante</option>
+                    <option value="recusado">🔴 Recusado</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Ticket Entregue?
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditForm((prev) => ({ ...prev, ticketEntregue: false }))}
+                      className={`py-2.5 px-2 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                        !editForm.ticketEntregue
+                          ? 'bg-amber-950/70 border-amber-500 text-amber-200'
+                          : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-500'
+                      }`}
+                    >
+                      Pendente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditForm((prev) => ({ ...prev, ticketEntregue: true }))}
+                      className={`py-2.5 px-2 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                        editForm.ticketEntregue
+                          ? 'bg-emerald-950/80 border-emerald-400 text-emerald-200'
+                          : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-500'
+                      }`}
+                    >
+                      Entregue
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dados Básicos de Identificação */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-800">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Estudante <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.estudante}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, estudante: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Turma
+                  </label>
+                  <input
+                    type="text"
+                    list="turmas-oficiais-natal"
+                    value={editForm.turma}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, turma: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Responsável <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.responsavel}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, responsavel: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    WhatsApp
+                  </label>
+                  <input
+                    type="tel"
+                    value={editForm.telefone}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({ ...prev, telefone: formatarTelefone(e.target.value) }))
+                    }
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Ações do Modal */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  disabled={salvandoEdicao}
+                  onClick={() => setComandaEditando(null)}
+                  className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvandoEdicao}
+                  className="min-h-[48px] px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white text-sm font-black tracking-wide flex items-center gap-2 shadow-lg shadow-emerald-950 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{salvandoEdicao ? 'Salvando...' : 'Salvar Alterações'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
       {/* MODAL DE SUCESSO & ENVIO DO WHATSAPP                           */}
       {/* ============================================================== */}
       {modalSucesso && (
@@ -2314,6 +2724,14 @@ export const NatalLuz: React.FC = () => {
                   R$ {modalSucesso.total.toFixed(2).replace('.', ',')}
                 </strong>
               </p>
+              {modalSucesso.formaPagamento === 'dinheiro' && (
+                <div className="pt-1">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-black">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Pagamento em Dinheiro — Valor já recebido!</span>
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Ações Principais: Disparo WhatsApp */}
@@ -2327,7 +2745,7 @@ export const NatalLuz: React.FC = () => {
                 <span>
                   {modalSucesso.formaPagamento === 'pix'
                     ? '1. Enviar Resumo da Comanda no WhatsApp'
-                    : 'Abrir WhatsApp do Responsável'}
+                    : 'Enviar Confirmação no WhatsApp'}
                 </span>
               </button>
 
@@ -2484,10 +2902,10 @@ export const NatalLuz: React.FC = () => {
                 <div className="bg-emerald-900/60 border border-emerald-500/70 rounded-2xl p-4 text-center space-y-1.5 shadow-lg shadow-emerald-950">
                   <div className="flex items-center justify-center gap-2 text-emerald-300 font-black text-sm">
                     <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                    <span>Valor Recebido em Dinheiro!</span>
+                    <span>Valor já Recebido em Dinheiro!</span>
                   </div>
                   <p className="text-xs text-emerald-200/90">
-                    O valor de <strong>R$ {modalSucesso.total.toFixed(2).replace('.', ',')}</strong> foi registrado como <strong>Pago/Recebido</strong>.
+                    O valor de <strong>R$ {modalSucesso.total.toFixed(2).replace('.', ',')}</strong> já foi recebido na administração da escola e a comanda está confirmada como <strong>Paga</strong>.
                   </p>
                   <div className="text-[11px] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-700/50 mt-1 font-semibold">
                     {modalSucesso.ticketEntregue ? (

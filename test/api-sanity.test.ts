@@ -72,7 +72,49 @@ try {
   const carteirasRes = await fetch(`http://127.0.0.1:${port}/api/carteiras`);
   assert.strictEqual(carteirasRes.status, 200, 'GET /api/carteiras deve responder 200');
 
-  console.log('✅ Endpoints HTTP (/api/dashboard, /api/carteiras) testados com sucesso.');
+  // Teste isolado e auto-limpante para edição de comanda do módulo Natal Luz
+  let tempComandaId: number | string | null = null;
+  try {
+    const createRes = await fetch(`http://127.0.0.1:${port}/api/natal/comandas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        estudante: 'Aluno Teste Sanity',
+        turma: '101',
+        responsavel: 'Responsavel Teste',
+        telefone: '(47) 99999-0000',
+        itens: [{ id: 'hotdog', nome: 'Cachorro-quente', quantidade: 1, valorUnitario: 10, subtotal: 10 }],
+        total: 10,
+        formaPagamento: 'pix',
+        ticketEntregue: false
+      })
+    });
+    assert.strictEqual(createRes.status, 200, 'POST /api/natal/comandas deve responder 200');
+    const createdData = await createRes.json();
+    tempComandaId = createdData.id;
+    assert.ok(tempComandaId, 'ID da comanda temporária deve ser retornado');
+
+    const putRes = await fetch(`http://127.0.0.1:${port}/api/natal/comandas/${tempComandaId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        formaPagamento: 'dinheiro'
+      })
+    });
+    assert.strictEqual(putRes.status, 200, 'PUT /api/natal/comandas/:id deve responder 200');
+    const putData = await putRes.json();
+    assert.strictEqual(putData.comanda?.formaPagamento, 'dinheiro', 'Forma de pagamento deve ser atualizada para dinheiro');
+    assert.strictEqual(putData.comanda?.status, 'pago', 'Status deve ser promovido para pago ao mudar para dinheiro');
+    console.log('✅ Endpoint PUT /api/natal/comandas/:id validado com sucesso.');
+  } finally {
+    if (tempComandaId) {
+      await fetch(`http://127.0.0.1:${port}/api/natal/comandas/${tempComandaId}`, {
+        method: 'DELETE'
+      });
+    }
+  }
+
+  console.log('✅ Endpoints HTTP (/api/dashboard, /api/carteiras, /api/natal/comandas) testados com sucesso.');
 } finally {
   server.close();
 }

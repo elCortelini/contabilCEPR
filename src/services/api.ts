@@ -1327,6 +1327,67 @@ export const api = {
     return { success: true, id, status };
   },
 
+  async updateNatalComanda(id: number | string, dados: any) {
+    const updatePayload: Record<string, any> = {
+      atualizadaEm: new Date().toISOString()
+    };
+    const camposPermitidos = [
+      'estudante',
+      'turma',
+      'professor',
+      'responsavel',
+      'telefone',
+      'itens',
+      'total',
+      'formaPagamento',
+      'status',
+      'ticketEntregue',
+      'pixPayload',
+      'motivoRecusa'
+    ];
+    for (const campo of camposPermitidos) {
+      if (dados[campo] !== undefined) {
+        if (campo === 'ticketEntregue') {
+          updatePayload[campo] = Boolean(dados[campo]);
+        } else if (campo === 'total') {
+          updatePayload[campo] = Number(dados[campo]) || 0;
+        } else if (campo === 'formaPagamento') {
+          updatePayload[campo] = String(dados[campo]).toLowerCase();
+        } else {
+          updatePayload[campo] = dados[campo];
+        }
+      }
+    }
+
+    if (firebaseApi.isConfigured()) {
+      await firebaseApi.updateDocument('comandas_natal', id, updatePayload);
+      return { success: true, id, comanda: { id, ...updatePayload } };
+    }
+    if (!IS_STATIC) {
+      try {
+        const res = await fetch(`/api/natal/comandas/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatePayload)
+        });
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Fallback local para atualização de comanda natal:', e);
+      }
+    }
+    const current = getStorage('comandas_natal', []);
+    let updatedItem: any = null;
+    const updated = current.map((c: any) => {
+      if (String(c.id) === String(id)) {
+        updatedItem = { ...c, ...updatePayload };
+        return updatedItem;
+      }
+      return c;
+    });
+    setStorage('comandas_natal', updated);
+    return { success: true, id, comanda: updatedItem };
+  },
+
   async updateMultipleNatalTickets(ids: number[], ticketEntregue: boolean) {
     const idList = ids.map(Number);
     if (firebaseApi.isConfigured()) {

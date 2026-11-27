@@ -1049,6 +1049,115 @@ router.post('/natal/comandas', (req, res) => {
   }
 });
 
+// Editar comanda existente (forma de pagamento, status, ticket e identificação)
+router.put('/natal/comandas/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const existente = db.prepare('SELECT * FROM comandas_natal WHERE id = ?').get(id) as any;
+
+    if (!existente) {
+      return res.status(404).json({ error: 'Comanda não encontrada' });
+    }
+
+    const {
+      estudante,
+      turma,
+      professor,
+      responsavel,
+      telefone,
+      itens,
+      total,
+      formaPagamento,
+      status,
+      ticketEntregue,
+      pixPayload,
+      motivoRecusa
+    } = req.body;
+
+    const agora = new Date().toISOString();
+    const formaFinal = String(formaPagamento || existente.formaPagamento || 'pix').toLowerCase();
+
+    let statusFinal = existente.status || 'aguardando_comprovante';
+    if (status !== undefined && status !== null && status !== '') {
+      statusFinal = status;
+    } else if (formaFinal === 'dinheiro' && existente.status !== 'entregue') {
+      statusFinal = 'pago';
+    }
+
+    let ticketFinal = existente.ticketEntregue ? 1 : 0;
+    if (statusFinal === 'entregue') {
+      ticketFinal = 1;
+    } else if (ticketEntregue !== undefined) {
+      ticketFinal = ticketEntregue ? 1 : 0;
+    }
+
+    const motivoRecusaFinal =
+      statusFinal === 'pago' || statusFinal === 'entregue'
+        ? (motivoRecusa !== undefined ? motivoRecusa : null)
+        : (motivoRecusa !== undefined ? motivoRecusa : existente.motivoRecusa);
+
+    const estudanteFinal = estudante !== undefined ? estudante : existente.estudante;
+    const turmaFinal = turma !== undefined ? turma : existente.turma;
+    const professorFinal = professor !== undefined ? professor : existente.professor;
+    const responsavelFinal = responsavel !== undefined ? responsavel : existente.responsavel;
+    const telefoneFinal = telefone !== undefined ? telefone : existente.telefone;
+    const itensJsonFinal = itens !== undefined ? JSON.stringify(itens || []) : existente.itensJson;
+    const totalFinal = total !== undefined ? (parseFloat(total) || 0) : existente.total;
+    const pixPayloadFinal = pixPayload !== undefined ? pixPayload : existente.pixPayload;
+
+    db.prepare(`
+      UPDATE comandas_natal
+      SET estudante = ?, turma = ?, professor = ?, responsavel = ?, telefone = ?,
+          itensJson = ?, total = ?, formaPagamento = ?, status = ?, ticketEntregue = ?,
+          pixPayload = ?, motivoRecusa = ?, atualizadaEm = ?
+      WHERE id = ?
+    `).run(
+      estudanteFinal,
+      turmaFinal,
+      professorFinal,
+      responsavelFinal,
+      telefoneFinal,
+      itensJsonFinal,
+      totalFinal,
+      formaFinal,
+      statusFinal,
+      ticketFinal,
+      pixPayloadFinal,
+      motivoRecusaFinal,
+      agora,
+      id
+    );
+
+    const codigoPedido = existente.codigoPedido || `NL-${String(id).padStart(4, '0')}`;
+
+    res.json({
+      success: true,
+      id: Number(id),
+      comanda: {
+        id: Number(id),
+        codigoPedido,
+        estudante: estudanteFinal,
+        turma: turmaFinal,
+        professor: professorFinal,
+        responsavel: responsavelFinal,
+        telefone: telefoneFinal,
+        itens: JSON.parse(itensJsonFinal || '[]'),
+        total: totalFinal,
+        formaPagamento: formaFinal,
+        status: statusFinal,
+        ticketEntregue: Boolean(ticketFinal),
+        pixPayload: pixPayloadFinal,
+        motivoRecusa: motivoRecusaFinal,
+        comprovante: existente.comprovante,
+        criadaEm: existente.criadaEm,
+        atualizadaEm: agora
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Alterar Status da Comanda (Aprovar, Recusar, Marcar Entregue)
 router.patch('/natal/comandas/:id/status', (req, res) => {
   try {
